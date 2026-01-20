@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>28Facil API - Documentação</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5.11.0/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5.11.0/favicon-16x16.png" sizes="16x16" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+
+        *,
+        *:before,
+        *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fafafa;
+        }
+
+        .topbar {
+            background-color: #1b1b1b !important;
+        }
+
+        .swagger-ui .topbar a {
+            color: #fff !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" charset="UTF-8"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
+    <script>
+        window.onload = function() {
+            // Detectar a URL base automaticamente
+            const baseUrl = window.location.origin;
+            
+            // Inicializar Swagger UI
+            const ui = SwaggerUIBundle({
+                url: baseUrl + "/api.json",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                
+                // Configurações adicionais
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                defaultModelRendering: "example",
+                displayOperationId: false,
+                displayRequestDuration: true,
+                docExpansion: "list",
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                supportedSubmitMethods: ["get", "put", "post", "delete", "options", "head", "patch"],
+                tryItOutEnabled: true,
+                
+                // Persist authorization
+                persistAuthorization: true,
+                
+                // Request interceptor para adicionar header customizado
+                requestInterceptor: (request) => {
+                    // Aqui você pode adicionar headers personalizados
+                    // request.headers['Custom-Header'] = 'valor';
+                    return request;
+                },
+                
+                // Response interceptor
+                responseInterceptor: (response) => {
+                    return response;
+                }
+            });
+
+            window.ui = ui;
+        };
+    </script>
+</body>
+</html>
