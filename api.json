@@ -1,0 +1,278 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "28Facil API",
+    "description": "API REST para autenticação e gerenciamento de API Keys do sistema 28Facil",
+    "version": "1.0.0",
+    "contact": {
+      "name": "28Facil Team",
+      "email": "contato@28facil.com.br",
+      "url": "https://28facil.com.br"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.28facil.com.br",
+      "description": "Produção"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Desenvolvimento"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Endpoints de saúde e status da API"
+    },
+    {
+      "name": "Authentication",
+      "description": "Validação de API Keys"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check da API",
+        "description": "Verifica se a API está online e retorna informações básicas",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "API está funcionando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Status detalhado da API",
+        "description": "Retorna status detalhado incluindo banco de dados e dependências",
+        "operationId": "getHealthDetailed",
+        "responses": {
+          "200": {
+            "description": "Status da API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api.json": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "OpenAPI Specification",
+        "description": "Retorna a documentação completa da API em formato OpenAPI 3.0",
+        "operationId": "getApiSpec",
+        "responses": {
+          "200": {
+            "description": "Especificação OpenAPI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/validate": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Validar API Key",
+        "description": "Valida uma API Key e retorna informações sobre permissões e uso",
+        "operationId": "validateApiKey",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key válida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationSuccess"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "API Key inválida ou expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit excedido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API Key no formato 28fc_[48 caracteres]"
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success"
+          },
+          "message": {
+            "type": "string",
+            "example": "28Facil API Server is running!"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-01-20T04:00:00-03:00"
+          },
+          "php_version": {
+            "type": "string",
+            "example": "8.2.0"
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string",
+                "example": "mysql"
+              },
+              "database": {
+                "type": "string",
+                "example": "28facil_api"
+              },
+              "status": {
+                "type": "string",
+                "example": "configured"
+              }
+            }
+          }
+        }
+      },
+      "ValidationSuccess": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": true
+          },
+          "user_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Minha API Key"
+          },
+          "prefix": {
+            "type": "string",
+            "example": "28fc_a1b2c3d4"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["read", "write", "delete"]
+            },
+            "example": ["read", "write"]
+          },
+          "rate_limit": {
+            "type": "integer",
+            "example": 1000
+          },
+          "usage_count": {
+            "type": "integer",
+            "example": 42
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-01-20T04:00:00-03:00"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "Invalid or expired API key"
+          }
+        }
+      },
+      "RateLimitError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Rate limit exceeded"
+          },
+          "retry_after": {
+            "type": "integer",
+            "description": "Segundos até poder tentar novamente",
+            "example": 3600
+          },
+          "limit": {
+            "type": "integer",
+            "example": 1000
+          },
+          "reset_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-01-20T05:00:00-03:00"
+          }
+        }
+      }
+    }
+  }
+}
