@@ -1,5 +1,6 @@
 -- =====================================================
 -- MIGRAÇÃO: Sistema de API Keys - 28Fácil
+-- Compatível com MySQL 8.0+
 -- =====================================================
 
 -- Tabela principal de API Keys
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `api_keys` (
     `description` TEXT NULL COMMENT 'Descrição opcional',
     
     -- Permissões e Limites
-    `permissions` JSON NOT NULL DEFAULT '[]' COMMENT 'Array de permissões: ["read", "write", "delete"]',
+    `permissions` JSON NULL COMMENT 'Array de permissões: ["read", "write", "delete"]',
     `rate_limit` INT UNSIGNED NOT NULL DEFAULT 1000 COMMENT 'Requisições permitidas por hora',
     
     -- Status
@@ -76,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `api_key_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='Logs de uso das API Keys';
 
--- Inserir exemplos (REMOVER EM PRODUÇÃO!)
+-- Inserir exemplo de teste
 INSERT INTO `api_keys` (
     `key_hash`,
     `key_prefix`,
@@ -100,6 +101,7 @@ SELECT
     id,
     key_prefix,
     name,
+    permissions,
     is_active,
     usage_count,
     created_at
