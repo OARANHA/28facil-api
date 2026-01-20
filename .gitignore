@@ -1,0 +1,35 @@
+# Ambiente
+.env
+.env.local
+
+# Vendor (Composer)
+vendor/
+composer.lock
+
+# Logs
+logs/
+*.log
+
+# Cache
+cache/
+*.cache
+
+# Backup
+backups/
+*.sql
+*.sql.gz
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Temporários
+tmp/
+temp/
+*.tmp
+*.swp

@@ -1,0 +1,25 @@
+# =====================================================
+# Apache Rewrite Rules - 28Facil API
+# =====================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirecionar tudo para index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Segurança
+<FilesMatch "\.(env|git|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# CORS Headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, X-API-Key"
+</IfModule>
