@@ -1,7 +1,7 @@
 # Dockerfile para 28Facil API com PostgreSQL
 FROM php:8.2-apache
 
-# Instalar dependências do sistema e extensões PHP necessárias
+# Instalar dependências do sistema e extensões PHP necessárias + postgresql-client
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     libzip-dev \
@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     curl \
+    postgresql-client \
     && docker-php-ext-install \
     pdo \
     pdo_pgsql \
@@ -17,8 +18,8 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Habilitar mod_rewrite do Apache
-RUN a2enmod rewrite
+# Habilitar mod_rewrite e mod_headers do Apache
+RUN a2enmod rewrite headers
 
 # Configurar timezone para America/Sao_Paulo
 RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
@@ -52,6 +53,10 @@ WORKDIR /var/www/html
 # Copiar código da aplicação
 COPY . /var/www/html/
 
+# Copiar e dar permissão ao entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Definir permissões
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
@@ -59,5 +64,5 @@ RUN chown -R www-data:www-data /var/www/html \
 # Expor porta 80
 EXPOSE 80
 
-# Comando para iniciar Apache
-CMD ["apache2-foreground"]
+# Usar entrypoint para executar migrations e iniciar Apache
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
