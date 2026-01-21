@@ -43,6 +43,32 @@ require_once __DIR__ . '/../config/database.php';
 use TwentyEightFacil\Controllers\AuthController;
 use TwentyEightFacil\Controllers\LicenseController;
 
+// Helper para pegar Authorization header (compatibilidade HTTP/2)
+function getAuthorizationHeader() {
+    // Tentar várias formas de obter o header
+    $headers = null;
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $headers = trim($_SERVER['HTTP_AUTHORIZATION']);
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $headers = trim($_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+    } elseif (function_exists('apache_request_headers')) {
+        $requestHeaders = apache_request_headers();
+        $requestHeaders = array_combine(array_map('ucwords', array_keys($requestHeaders)), array_values($requestHeaders));
+        if (isset($requestHeaders['Authorization'])) {
+            $headers = trim($requestHeaders['Authorization']);
+        }
+    } elseif (function_exists('getallheaders')) {
+        $requestHeaders = getallheaders();
+        foreach ($requestHeaders as $key => $value) {
+            if (strtolower($key) === 'authorization') {
+                $headers = trim($value);
+                break;
+            }
+        }
+    }
+    return $headers;
+}
+
 // Parse da URL
 $requestUri = $_SERVER['REQUEST_URI'];
 $path = parse_url($requestUri, PHP_URL_PATH);
@@ -110,9 +136,9 @@ try {
     // Rotas Protegidas (requerem autenticação)
     // ===========================
     
-    // Obter token do header
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    $token = str_replace('Bearer ', '', $authHeader);
+    // Obter token do header (usando função helper)
+    $authHeader = getAuthorizationHeader();
+    $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
     
     // Validar token
     $userId = AuthController::validateToken($token);
