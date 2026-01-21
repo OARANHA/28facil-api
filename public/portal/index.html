@@ -1,103 +1,173 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal de Licenças - 28Facil</title>
     <link rel="icon" type="image/png" href="/portal/assets/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         .logo-container {
-            max-width: 200px;
+            max-width: 180px;
             margin: 0 auto 2rem;
         }
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .glass-effect {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+        .gradient-border {
+            border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        /* Dark mode otimizado */
+        .dark body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        .input-dark {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        .input-dark:focus {
+            border-color: #667eea;
+            background-color: #0f172a;
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <!-- Theme Toggle -->
+    <div class="absolute top-4 right-4 z-50">
+        <button onclick="toggleTheme()" id="theme-toggle" 
+                class="p-3 rounded-full glass-effect hover:bg-slate-700 transition-all duration-300">
+            <svg id="icon-dark" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+            </svg>
+            <svg id="icon-light" class="w-5 h-5 text-slate-300 hidden" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+        </button>
+    </div>
+
     <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full space-y-8">
             <!-- Logo -->
-            <div class="logo-container">
-                <img src="/portal/assets/logo.png" alt="28Facil" class="w-full">
+            <div class="logo-container animate-fade-in">
+                <img src="/portal/assets/logo.png" alt="28Facil" class="w-full drop-shadow-2xl">
             </div>
             
             <!-- Tab Navigation -->
-            <div class="flex rounded-lg overflow-hidden shadow-sm">
-                <button onclick="showTab('login')" id="tab-login" class="flex-1 py-3 bg-indigo-600 text-white font-semibold transition-colors">
+            <div class="flex rounded-lg overflow-hidden shadow-lg glass-effect">
+                <button onclick="showTab('login')" id="tab-login" 
+                        class="flex-1 py-3 bg-indigo-600 text-white font-semibold transition-all duration-300">
                     Login
                 </button>
-                <button onclick="showTab('register')" id="tab-register" class="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold transition-colors">
+                <button onclick="showTab('register')" id="tab-register" 
+                        class="flex-1 py-3 bg-slate-700 text-slate-300 font-semibold transition-all duration-300 hover:bg-slate-600">
                     Cadastrar
                 </button>
             </div>
             
             <!-- Login Form -->
-            <div id="form-login" class="bg-white py-8 px-6 shadow rounded-lg">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Acesse sua conta</h2>
+            <div id="form-login" class="glass-effect py-8 px-6 shadow-2xl rounded-lg animate-fade-in">
+                <h2 class="text-2xl font-bold text-white mb-6 text-center">Acesse sua conta</h2>
                 
                 <form onsubmit="handleLogin(event)" class="space-y-6">
                     <div>
-                        <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="login-email" class="block text-sm font-medium text-slate-300 mb-2">
                             Email
                         </label>
                         <input type="email" id="login-email" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                               class="w-full px-4 py-3 input-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                     </div>
                     
                     <div>
-                        <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="login-password" class="block text-sm font-medium text-slate-300 mb-2">
                             Senha
                         </label>
                         <input type="password" id="login-password" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                               class="w-full px-4 py-3 input-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                     </div>
                     
-                    <div id="login-error" class="hidden p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm"></div>
+                    <div id="login-error" class="hidden p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm"></div>
                     
-                    <button type="submit" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition-colors">
+                    <button type="submit" 
+                            class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
                         Entrar
                     </button>
                 </form>
             </div>
             
             <!-- Register Form -->
-            <div id="form-register" class="bg-white py-8 px-6 shadow rounded-lg hidden">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Criar conta</h2>
+            <div id="form-register" class="glass-effect py-8 px-6 shadow-2xl rounded-lg hidden animate-fade-in">
+                <h2 class="text-2xl font-bold text-white mb-6 text-center">Criar conta</h2>
                 
                 <form onsubmit="handleRegister(event)" class="space-y-6">
                     <div>
-                        <label for="register-name" class="block text-sm font-medium text-gray-700 mb-1">
-                            Nome completo
+                        <label for="register-name" class="block text-sm font-medium text-slate-300 mb-2">
+                            Nome completo *
                         </label>
-                        <input type="text" id="register-name" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="register-name" required minlength="3"
+                               placeholder="Digite seu nome completo"
+                               class="w-full px-4 py-3 input-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                        <p class="text-xs text-slate-400 mt-1">Mínimo 3 caracteres</p>
                     </div>
                     
                     <div>
-                        <label for="register-email" class="block text-sm font-medium text-gray-700 mb-1">
-                            Email
+                        <label for="register-email" class="block text-sm font-medium text-slate-300 mb-2">
+                            Email *
                         </label>
                         <input type="email" id="register-email" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                               placeholder="seu@email.com"
+                               class="w-full px-4 py-3 input-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                        <p class="text-xs text-slate-400 mt-1">Será usado para validar seu token</p>
                     </div>
                     
                     <div>
-                        <label for="register-password" class="block text-sm font-medium text-gray-700 mb-1">
-                            Senha (mínimo 6 caracteres)
+                        <label for="register-password" class="block text-sm font-medium text-slate-300 mb-2">
+                            Senha *
                         </label>
                         <input type="password" id="register-password" required minlength="6"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                               placeholder="Mínimo 6 caracteres"
+                               class="w-full px-4 py-3 input-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                        <p class="text-xs text-slate-400 mt-1">Mínimo 6 caracteres para segurança</p>
                     </div>
                     
-                    <div id="register-error" class="hidden p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm"></div>
+                    <div id="register-error" class="hidden p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-200 text-sm"></div>
+                    <div id="register-success" class="hidden p-3 bg-green-900/50 border border-green-500 rounded-lg text-green-200 text-sm"></div>
                     
-                    <button type="submit" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition-colors">
+                    <button type="submit" 
+                            class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
                         Criar Conta
                     </button>
                 </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-slate-400 text-sm">
+                <p>© 2026 28Facil. Todos os direitos reservados.</p>
             </div>
         </div>
     </div>
