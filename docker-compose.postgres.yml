@@ -83,12 +83,12 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-  # API PHP - TRAEFIK DESABILITADO (usar docker-compose.api.yml)
+  # API PHP
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: 28facil-api-old
+    container_name: 28facil-api
     restart: unless-stopped
     
     environment:
@@ -109,15 +109,36 @@ services:
     ports:
       - "${API_PORT:-8080}:80"
     
+    # Apenas volume para logs - código vem da imagem Docker
     volumes:
       - api_logs:/var/www/html/logs
     
     networks:
       - 28facil-network
+      - traefik-public
     
     labels:
-      # TRAEFIK DESABILITADO - Evita conflito com nova stack
-      - "traefik.enable=false"
+      # Habilitar Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      
+      # Roteador HTTP (redirecionar para HTTPS)
+      - "traefik.http.routers.28facil-api-http.rule=Host(`api.28facil.com.br`)"
+      - "traefik.http.routers.28facil-api-http.entrypoints=web"
+      - "traefik.http.routers.28facil-api-http.middlewares=redirect-to-https"
+      
+      # Roteador HTTPS
+      - "traefik.http.routers.28facil-api.rule=Host(`api.28facil.com.br`)"
+      - "traefik.http.routers.28facil-api.entrypoints=websecure"
+      - "traefik.http.routers.28facil-api.tls=true"
+      - "traefik.http.routers.28facil-api.tls.certresolver=letsencrypt"
+      
+      # Service (porta do container)
+      - "traefik.http.services.28facil-api.loadbalancer.server.port=80"
+      
+      # Middleware de redirecionamento HTTPS
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
 
 volumes:
   postgres_data:
@@ -130,4 +151,5 @@ volumes:
 networks:
   28facil-network:
     driver: bridge
-  # traefik-public removido deste compose
+  traefik-public:
+    external: true
