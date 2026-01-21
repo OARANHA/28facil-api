@@ -2,7 +2,7 @@
  * Clientes Management - 28Facil Portal
  * Versão com UIComponents integrado
  * Issue #3 - Melhorias de UX/UI
- * Issue #2 - Autenticação via cookie httpOnly
+ * Issue #2 - Autenticação via cookie httpOnly + CSRF
  */
 
 const API_BASE = window.location.origin;
@@ -11,6 +11,25 @@ let currentPassword = '';
 let allClients = []; // Cache de todos os clientes
 let filteredClients = []; // Clientes filtrados pela busca
 let user = {}; // Usuário autenticado
+let csrfToken = null; // CSRF Token
+
+// Carregar CSRF token
+async function loadCsrfToken() {
+    try {
+        const response = await fetch('/api/csrf-token', { credentials: 'include' });
+        const data = await response.json();
+        if (data.success && data.csrf_token) {
+            csrfToken = data.csrf_token;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar CSRF token:', error);
+    }
+}
+
+// Obter CSRF token atual
+function getCsrfToken() {
+    return csrfToken;
+}
 
 // Verificar autenticação via cookie (httpOnly)
 async function checkAuth() {
@@ -267,7 +286,8 @@ async function createClient(event) {
             method: 'POST',
             credentials: 'include',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
             },
             body: JSON.stringify({
                 name,
@@ -344,7 +364,8 @@ async function resetPassword(userId) {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
                     },
                     body: JSON.stringify({ generate: true })
                 });
@@ -390,7 +411,10 @@ async function deleteClient(userId) {
     try {
         const response = await fetch(`${API_BASE}/api/users/${userId}`, {
             method: 'DELETE',
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
         });
         
         const data = await response.json();
@@ -413,6 +437,7 @@ async function deleteClient(userId) {
 
 // Inicializar ao carregar página
 window.addEventListener('DOMContentLoaded', async () => {
+    await loadCsrfToken(); // Carregar CSRF token primeiro
     const isAuth = await checkAuth();
     if (isAuth) {
         loadClients();
