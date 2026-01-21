@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NULL,
+    company VARCHAR(255) NULL,
     role user_role DEFAULT 'customer',
     status user_status DEFAULT 'active',
     email_verified_at TIMESTAMP WITH TIME ZONE NULL,
@@ -26,6 +28,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_users_created_at ON users(created_at DESC);
+CREATE INDEX idx_users_company ON users(company);
 
 -- Trigger para updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
@@ -35,6 +38,8 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 COMMENT ON TABLE users IS 'Usuários do portal de licenciamento 28Fácil';
 COMMENT ON COLUMN users.email IS 'Email único do usuário';
 COMMENT ON COLUMN users.password_hash IS 'Hash bcrypt da senha';
+COMMENT ON COLUMN users.phone IS 'Telefone de contato';
+COMMENT ON COLUMN users.company IS 'Empresa/Razão social do cliente';
 
 -- Criar usuário admin padrão
 -- Senha: admin123
@@ -51,4 +56,4 @@ VALUES (
     updated_at = CURRENT_TIMESTAMP;
 
 -- Verificar
-SELECT id, name, email, role, status, created_at FROM users;
+SELECT id, name, email, phone, company, role, status, created_at FROM users;
