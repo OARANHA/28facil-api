@@ -1,11 +1,20 @@
 -- =====================================================
 -- MIGRAÇÃO: Tabela de Usuários - 28Fácil
 -- Compatível com PostgreSQL 16+
+-- IDEMPOTENTE: Pode ser executada múltiplas vezes
 -- =====================================================
 
--- Criar tipos ENUM
-CREATE TYPE user_role AS ENUM ('admin', 'customer');
-CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
+-- Criar tipos ENUM (se não existirem)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('admin', 'customer');
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_status') THEN
+        CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
+    END IF;
+END $$;
 
 -- Tabela de usuários
 CREATE TABLE IF NOT EXISTS users (
@@ -23,16 +32,21 @@ CREATE TABLE IF NOT EXISTS users (
     last_login_at TIMESTAMP WITH TIME ZONE NULL
 );
 
--- Índices
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_created_at ON users(created_at DESC);
-CREATE INDEX idx_users_company ON users(company);
+-- Índices (se não existirem)
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_company ON users(company);
 
--- Trigger para updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Trigger para updated_at (se não existir)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
+        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Comentários
 COMMENT ON TABLE users IS 'Usuários do portal de licenciamento 28Fácil';
@@ -41,7 +55,7 @@ COMMENT ON COLUMN users.password_hash IS 'Hash bcrypt da senha';
 COMMENT ON COLUMN users.phone IS 'Telefone de contato';
 COMMENT ON COLUMN users.company IS 'Empresa/Razão social do cliente';
 
--- Criar usuário admin padrão
+-- Criar usuário admin padrão (se não existir)
 -- Senha: admin123
 -- Hash gerado com: password_hash('admin123', PASSWORD_BCRYPT)
 INSERT INTO users (name, email, password_hash, role, email_verified_at) 
