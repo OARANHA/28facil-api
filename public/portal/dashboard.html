@@ -38,6 +38,15 @@
         .animate-slide-in {
             animation: slideIn 0.5s ease-out;
         }
+        .tab-active {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.4);
+        }
+        .tab-inactive {
+            background: rgba(30, 41, 59, 0.5);
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -53,17 +62,6 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Botão Clientes (sempre visível para admin) -->
-                    <a href="/portal/clientes.html" id="btn-clientes"
-                       class="hidden px-4 py-2 glass-effect rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
-                        <div class="flex items-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            <span>Clientes</span>
-                        </div>
-                    </a>
-                    
                     <!-- User Info -->
                     <div class="flex items-center space-x-3 px-4 py-2 glass-effect rounded-lg">
                         <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -84,97 +82,226 @@
         </div>
     </header>
     
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slide-in">
-            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-slate-400 mb-1">Total de Licenças</p>
-                        <p id="stat-total" class="text-3xl font-bold text-white">0</p>
-                    </div>
-                    <div class="p-3 bg-indigo-600 rounded-lg">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
+    <!-- Tabs Navigation -->
+    <div class="max-w-7xl mx-auto px-4 pt-6 sm:px-6 lg:px-8">
+        <div class="flex space-x-2 mb-6">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" 
+                    class="tab-active px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    <span>Dashboard</span>
                 </div>
-            </div>
+            </button>
             
-            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-slate-400 mb-1">Licenças Ativas</p>
-                        <p id="stat-active" class="text-3xl font-bold text-green-400">0</p>
-                    </div>
-                    <div class="p-3 bg-green-600 rounded-lg">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    </div>
+            <button onclick="switchTab('clients')" id="tab-clients" 
+                    class="tab-inactive px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 hidden">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <span>Clientes</span>
                 </div>
-            </div>
+            </button>
             
-            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-slate-400 mb-1">Ativações</p>
-                        <p id="stat-activations" class="text-3xl font-bold text-blue-400">0</p>
-                    </div>
-                    <div class="p-3 bg-blue-600 rounded-lg">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
+            <button onclick="switchTab('licenses')" id="tab-licenses" 
+                    class="tab-inactive px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span>Licenças</span>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Actions -->
-        <div class="mb-6 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-white">Minhas Licenças</h2>
-            <button onclick="showNewLicenseModal()" id="btn-new-license" 
-                    class="hidden px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg">
-                + Nova Licença
             </button>
         </div>
+    </div>
+    
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 pb-8 sm:px-6 lg:px-8">
         
-        <!-- Licenses List -->
-        <div id="licenses-container" class="space-y-4">
-            <div class="glass-effect rounded-lg p-12 text-center">
-                <div class="animate-pulse">
-                    <div class="w-16 h-16 bg-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
+        <!-- TAB: Dashboard -->
+        <div id="content-dashboard" class="tab-content">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slide-in">
+                <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-400 mb-1">Total de Licenças</p>
+                            <p id="stat-total" class="text-3xl font-bold text-white">0</p>
+                        </div>
+                        <div class="p-3 bg-indigo-600 rounded-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
                     </div>
-                    <p class="text-slate-300 text-lg">Carregando licenças...</p>
+                </div>
+                
+                <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-400 mb-1">Licenças Ativas</p>
+                            <p id="stat-active" class="text-3xl font-bold text-green-400">0</p>
+                        </div>
+                        <div class="p-3 bg-green-600 rounded-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-slate-400 mb-1">Ativações</p>
+                            <p id="stat-activations" class="text-3xl font-bold text-blue-400">0</p>
+                        </div>
+                        <div class="p-3 bg-blue-600 rounded-lg">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-effect rounded-xl p-8 text-center">
+                <h3 class="text-2xl font-bold text-white mb-4">Bem-vindo ao Portal 28Facil!</h3>
+                <p class="text-slate-300 mb-6">Use as abas acima para navegar:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <div class="glass-effect p-6 rounded-lg">
+                        <svg class="w-12 h-12 text-indigo-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <h4 class="font-semibold text-white mb-2">Clientes</h4>
+                        <p class="text-sm text-slate-400">Gerencie seus clientes</p>
+                    </div>
+                    <div class="glass-effect p-6 rounded-lg">
+                        <svg class="w-12 h-12 text-purple-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <h4 class="font-semibold text-white mb-2">Licenças</h4>
+                        <p class="text-sm text-slate-400">Visualize e crie licenças</p>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <!-- TAB: Clients -->
+        <div id="content-clients" class="tab-content hidden">
+            <div class="mb-6 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-white">Clientes</h2>
+                <button onclick="showNewClientModal()" 
+                        class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                    + Novo Cliente
+                </button>
+            </div>
+            <div id="clients-container" class="glass-effect rounded-xl overflow-hidden">
+                <div class="animate-pulse p-12 text-center">
+                    <p class="text-slate-300 text-lg">Carregando clientes...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB: Licenses -->
+        <div id="content-licenses" class="tab-content hidden">
+            <div class="mb-6 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-white">Minhas Licenças</h2>
+                <button onclick="showNewLicenseModal()" id="btn-new-license" 
+                        class="hidden px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                    + Nova Licença
+                </button>
+            </div>
+            <div id="licenses-container" class="space-y-4">
+                <div class="glass-effect rounded-lg p-12 text-center">
+                    <div class="animate-pulse">
+                        <p class="text-slate-300 text-lg">Carregando licenças...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     </main>
     
-    <!-- Modal: New License (Admin only) -->
+    <!-- Modal: New Client -->
+    <div id="modal-new-client" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 overflow-y-auto">
+        <div class="glass-effect rounded-xl p-8 max-w-lg w-full mx-4 my-8 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-6">Novo Cliente</h3>
+            <form onsubmit="createClient(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Nome Completo *</label>
+                    <input type="text" id="new-client-name" required
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Email *</label>
+                    <input type="email" id="new-client-email" required
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Telefone</label>
+                    <input type="tel" id="new-client-phone"
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Empresa</label>
+                    <input type="text" id="new-client-company"
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeClientModal()" 
+                            class="flex-1 px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all">
+                        Criar Cliente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal: Password Generated -->
+    <div id="modal-password" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Cliente Criado!</h3>
+                <p class="text-slate-400 mb-6">Senha gerada:</p>
+                <div class="bg-slate-800 p-4 rounded-lg border-2 border-indigo-500 mb-6">
+                    <p id="generated-password" class="text-2xl font-mono font-bold text-indigo-400"></p>
+                </div>
+                <button onclick="copyPassword()" 
+                        class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-all mb-3">
+                    📋 Copiar Senha
+                </button>
+                <button onclick="closePasswordModal()" 
+                        class="w-full px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: New License -->
     <div id="modal-new-license" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 overflow-y-auto">
         <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 my-8 shadow-2xl">
             <h3 class="text-xl font-bold text-white mb-6">Nova Licença</h3>
             <form onsubmit="createLicense(event)" class="space-y-4">
-                <!-- Cliente -->
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">
-                        Cliente *
-                        <span class="text-xs text-slate-500">(Para quem é essa licença?)</span>
-                    </label>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Cliente *</label>
                     <select id="new-user-id" required
                             class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="">Carregando clientes...</option>
+                        <option value="">Carregando...</option>
                     </select>
-                    <p class="text-xs text-slate-500 mt-1">
-                        <a href="/portal/clientes.html" class="text-indigo-400 hover:text-indigo-300">→ Criar novo cliente</a>
-                    </p>
                 </div>
-                
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Produto</label>
                     <input type="text" id="new-product" value="AiVoPro" 
@@ -196,7 +323,7 @@
                            class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeModal()" 
+                    <button type="button" onclick="closeLicenseModal()" 
                             class="flex-1 px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
                         Cancelar
                     </button>
@@ -226,13 +353,6 @@
         </div>
     </div>
     
-    <script>
-        // Mostrar botão Clientes para admin
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (user.role === 'admin') {
-            document.getElementById('btn-clientes').classList.remove('hidden');
-        }
-    </script>
-    <script src="/portal/assets/js/dashboard.js"></script>
+    <script src="/portal/assets/js/dashboard-unified.js"></script>
 </body>
 </html>
