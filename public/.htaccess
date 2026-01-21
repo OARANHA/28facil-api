@@ -26,9 +26,23 @@ DirectoryIndex index.html index.php
     Require all denied
 </FilesMatch>
 
-# CORS Headers
+# CORS Headers - Garantir que /api.json seja acessível
 <IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, X-API-Key, Authorization"
+    # CORS para todas as rotas
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Content-Type, X-API-Key, Authorization, X-Requested-With"
+    
+    # Headers adicionais para preflight (OPTIONS)
+    Header always set Access-Control-Max-Age "3600"
+    
+    # Permitir exposição de headers customizados
+    Header always set Access-Control-Expose-Headers "X-API-Key, Authorization"
+</IfModule>
+
+# Responder OK para requisições OPTIONS (preflight)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
 </IfModule>
