@@ -16,6 +16,8 @@ services:
     
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Montar migrations para acesso fácil
+      - ./database/migrations_postgres:/docker-entrypoint-initdb.d:ro
     
     ports:
       - "${DB_PORT:-5432}:5432"
