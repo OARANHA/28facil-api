@@ -22,7 +22,7 @@ class CsrfProtection
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $request
      * @param  \Closure  $next
      * @return mixed
      */
@@ -46,11 +46,14 @@ class CsrfProtection
         
         // Validar token
         if (!$token || !hash_equals($sessionToken, $token)) {
-            return response()->json([
+            http_response_code(419); // 419 = Token Mismatch
+            header('Content-Type: application/json');
+            echo json_encode([
                 'success' => false,
                 'error' => 'Token CSRF inválido ou expirado',
                 'code' => 'CSRF_TOKEN_MISMATCH'
-            ], 419); // 419 = Token Mismatch
+            ]);
+            exit;
         }
         
         return $next($request);
@@ -59,7 +62,7 @@ class CsrfProtection
     /**
      * Verifica se a requisição está na lista de exceções
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $request
      * @return bool
      */
     protected function inExceptArray($request)
@@ -80,7 +83,7 @@ class CsrfProtection
     /**
      * Gera novo token CSRF
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $request
      * @return string
      */
     public static function generateToken($request)
