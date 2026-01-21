@@ -1,24 +1,82 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - 28Facil</title>
     <link rel="icon" type="image/png" href="/portal/assets/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-effect {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+    </style>
 </head>
-<body class="bg-gray-50">
+<body class="min-h-screen">
     <!-- Header -->
-    <header class="bg-white shadow-sm">
+    <header class="glass-effect border-b border-slate-700">
         <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <img src="/portal/assets/logo.png" alt="28Facil" class="h-10">
-                    <h1 class="text-xl font-bold text-gray-900">Portal de Licenças</h1>
+                    <img src="/portal/assets/logo.png" alt="28Facil" class="h-12 drop-shadow-lg">
+                    <div class="border-l border-slate-600 pl-4">
+                        <h1 class="text-xl font-bold text-white">Portal de Licenças</h1>
+                        <p class="text-xs text-slate-400">Sistema de Gerenciamento</p>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span id="user-name" class="text-gray-700"></span>
-                    <button onclick="logout()" class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900">
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleTheme()" id="theme-toggle" 
+                            class="p-2 rounded-lg glass-effect hover:bg-slate-700 transition-all">
+                        <svg id="icon-dark" class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                        </svg>
+                        <svg id="icon-light" class="w-5 h-5 text-slate-300 hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- User Info -->
+                    <div class="flex items-center space-x-3 px-4 py-2 glass-effect rounded-lg">
+                        <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span id="user-initials" class="text-white text-sm font-bold">?</span>
+                        </div>
+                        <div class="hidden md:block">
+                            <p id="user-name" class="text-sm font-semibold text-white"></p>
+                            <p id="user-email" class="text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="logout()" 
+                            class="px-4 py-2 glass-effect rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
                         Sair
                     </button>
                 </div>
@@ -29,43 +87,43 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slide-in">
+            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Total de Licenças</p>
-                        <p id="stat-total" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-sm text-slate-400 mb-1">Total de Licenças</p>
+                        <p id="stat-total" class="text-3xl font-bold text-white">0</p>
                     </div>
-                    <div class="p-3 bg-indigo-100 rounded-lg">
-                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-3 bg-indigo-600 rounded-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Licenças Ativas</p>
-                        <p id="stat-active" class="text-3xl font-bold text-green-600">0</p>
+                        <p class="text-sm text-slate-400 mb-1">Licenças Ativas</p>
+                        <p id="stat-active" class="text-3xl font-bold text-green-400">0</p>
                     </div>
-                    <div class="p-3 bg-green-100 rounded-lg">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-3 bg-green-600 rounded-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="glass-effect rounded-xl shadow-2xl p-6 hover:scale-105 transition-transform duration-300">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Ativações</p>
-                        <p id="stat-activations" class="text-3xl font-bold text-blue-600">0</p>
+                        <p class="text-sm text-slate-400 mb-1">Ativações</p>
+                        <p id="stat-activations" class="text-3xl font-bold text-blue-400">0</p>
                     </div>
-                    <div class="p-3 bg-blue-100 rounded-lg">
-                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="p-3 bg-blue-600 rounded-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
                     </div>
@@ -75,32 +133,42 @@
         
         <!-- Actions -->
         <div class="mb-6 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-gray-900">Minhas Licenças</h2>
-            <button onclick="showNewLicenseModal()" id="btn-new-license" class="hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition-colors">
+            <h2 class="text-2xl font-bold text-white">Minhas Licenças</h2>
+            <button onclick="showNewLicenseModal()" id="btn-new-license" 
+                    class="hidden px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg">
                 + Nova Licença
             </button>
         </div>
         
         <!-- Licenses List -->
         <div id="licenses-container" class="space-y-4">
-            <div class="text-center py-12">
-                <p class="text-gray-500">Carregando licenças...</p>
+            <div class="glass-effect rounded-lg p-12 text-center">
+                <div class="animate-pulse">
+                    <div class="w-16 h-16 bg-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                    </div>
+                    <p class="text-slate-300 text-lg">Carregando licenças...</p>
+                </div>
             </div>
         </div>
     </main>
     
     <!-- Modal: New License (Admin only) -->
-    <div id="modal-new-license" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Nova Licença</h3>
+    <div id="modal-new-license" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-6">Nova Licença</h3>
             <form onsubmit="createLicense(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Produto</label>
-                    <input type="text" id="new-product" value="AiVoPro" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Produto</label>
+                    <input type="text" id="new-product" value="AiVoPro" 
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select id="new-type" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Tipo</label>
+                    <select id="new-type" 
+                            class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="lifetime">Vitalícia</option>
                         <option value="annual">Anual</option>
                         <option value="monthly">Mensal</option>
@@ -108,14 +176,17 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Máx. Ativações</label>
-                    <input type="number" id="new-activations" value="1" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Máx. Ativações</label>
+                    <input type="number" id="new-activations" value="1" min="1" 
+                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <div class="flex space-x-3">
-                    <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeModal()" 
+                            class="flex-1 px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
                         Cancelar
                     </button>
-                    <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md">
+                    <button type="submit" 
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all">
                         Criar
                     </button>
                 </div>
@@ -124,11 +195,11 @@
     </div>
     
     <!-- Modal: License Details -->
-    <div id="modal-license-details" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 my-8">
+    <div id="modal-license-details" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 overflow-y-auto">
+        <div class="glass-effect rounded-xl p-8 max-w-2xl w-full mx-4 my-8 shadow-2xl">
             <div class="flex justify-between items-start mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Detalhes da Licença</h3>
-                <button onclick="closeLicenseDetails()" class="text-gray-400 hover:text-gray-600">
+                <h3 class="text-xl font-bold text-white">Detalhes da Licença</h3>
+                <button onclick="closeLicenseDetails()" class="text-slate-400 hover:text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
