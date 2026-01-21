@@ -1,0 +1,262 @@
+/**
+ * 28Facil Portal - UI Components Styles
+ * Estilos para componentes reutilizáveis
+ * Issue #3 - Melhorias de UX/UI
+ */
+
+/* ========================================
+   ANIMAÇÕES
+   ======================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ========================================
+   LOADING SKELETONS
+   ======================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        #1e293b 25%,
+        #334155 50%,
+        #1e293b 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ========================================
+   TOASTS
+   ======================================== */
+
+.toast {
+    min-width: 250px;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   EMPTY STATES
+   ======================================== */
+
+.empty-state {
+    min-height: 300px;
+}
+
+.empty-state-icon {
+    filter: grayscale(100%);
+    opacity: 0.3;
+}
+
+/* ========================================
+   PAGINAÇÃO
+   ======================================== */
+
+.pagination-btn:disabled {
+    pointer-events: none;
+}
+
+/* ========================================
+   MODAL OVERLAY
+   ======================================== */
+
+.modal-overlay {
+    backdrop-filter: blur(4px);
+}
+
+/* ========================================
+   SEARCH INPUT
+   ======================================== */
+
+.search-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ========================================
+   COPY BUTTON
+   ======================================== */
+
+.copy-btn {
+    transition: all 0.2s ease;
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}
+
+/* ========================================
+   RESPONSIVIDADE
+   ======================================== */
+
+@media (max-width: 640px) {
+    .toast {
+        min-width: 200px;
+        font-size: 0.875rem;
+    }
+    
+    .modal-overlay > div {
+        max-width: 95%;
+        margin: 0.5rem;
+    }
+}
+
+/* ========================================
+   SCROLLBAR CUSTOMIZADO
+   ======================================== */
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #1e293b;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* ========================================
+   BADGES
+   ======================================== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-success {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+}
+
+.badge-warning {
+    background-color: rgba(251, 191, 36, 0.2);
+    color: #fde047;
+}
+
+.badge-error {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+
+.badge-info {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #c7d2fe;
+}
+
+/* ========================================
+   CARDS HOVER EFFECTS
+   ======================================== */
+
+.card-hover {
+    transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   TABLE ENHANCEMENTS
+   ======================================== */
+
+.table-row-hover:hover {
+    background-color: rgba(51, 65, 85, 0.5);
+    transition: background-color 0.2s ease;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
