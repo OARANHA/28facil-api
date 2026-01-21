@@ -156,10 +156,22 @@
     </main>
     
     <!-- Modal: New License (Admin only) -->
-    <div id="modal-new-license" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+    <div id="modal-new-license" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 overflow-y-auto">
+        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 my-8 shadow-2xl">
             <h3 class="text-xl font-bold text-white mb-6">Nova Licença</h3>
             <form onsubmit="createLicense(event)" class="space-y-4">
+                <!-- Cliente -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">
+                        Cliente *
+                        <span class="text-xs text-slate-500">(Para quem é essa licença?)</span>
+                    </label>
+                    <select id="new-user-id" required
+                            class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Carregando clientes...</option>
+                    </select>
+                </div>
+                
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Produto</label>
                     <input type="text" id="new-product" value="AiVoPro" 
