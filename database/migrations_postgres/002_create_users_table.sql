@@ -43,7 +43,7 @@ INSERT INTO users (name, email, password_hash, role, email_verified_at)
 VALUES (
     '28Facil Admin',
     'admin@28facil.com.br',
-    '$2y$10$wMHnhGJN3lVGZqL0YLTd3.pPYqN0I8XqPkXW8yLFjLB8LHQW6Jj0K',
+    '$2y$10$opCfKFr3M2tBC1RtnNSiOe.5/Ro9A1z2V2thSFEmX3WP2f.JzMN0S',
     'admin',
     CURRENT_TIMESTAMP
 ) ON CONFLICT (email) DO UPDATE SET
