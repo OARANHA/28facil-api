@@ -42,8 +42,9 @@ require_once __DIR__ . '/../config/database.php';
 
 use TwentyEightFacil\Controllers\AuthController;
 use TwentyEightFacil\Controllers\LicenseController;
+use TwentyEightFacil\Controllers\UserController;
 
-// Helper para pegar Authorization header (compatibilidade HTTP/2)
+// Helper para pegar Authorization header
 function getAuthorizationHeader() {
     $headers = null;
     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
@@ -142,7 +143,7 @@ try {
         exit;
     }
     
-    // Buscar dados do usuário usando PDO
+    // Buscar dados do usuário
     $stmt = $db->prepare("SELECT id, role FROM users WHERE id = :id AND status = 'active'");
     $stmt->execute(['id' => $userId]);
     $currentUser = $stmt->fetch();
@@ -155,35 +156,62 @@ try {
     
     $isAdmin = $currentUser['role'] === 'admin';
     
+    // Dados do usuário logado
     if ($path === '/auth/me' && $method === 'GET') {
         $controller = new AuthController($db);
         echo json_encode($controller->me($userId), JSON_PRETTY_PRINT);
         exit;
     }
     
+    // ===========================
+    // Rotas de Usuários/Clientes
+    // ===========================
+    
+    $userController = new UserController($db);
+    
+    // Listar usuários
     if ($path === '/users' && $method === 'GET') {
-        if (!$isAdmin) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Acesso negado. Apenas administradores.']);
-            exit;
-        }
-        
-        $stmt = $db->prepare("
-            SELECT id, name, email, role, status, created_at 
-            FROM users 
-            WHERE status = 'active'
-            ORDER BY name ASC
-        ");
-        $stmt->execute();
-        $users = $stmt->fetchAll();
-        
-        echo json_encode([
-            'success' => true,
-            'users' => $users,
-            'count' => count($users)
-        ], JSON_PRETTY_PRINT);
+        echo json_encode($userController->list($isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
+    
+    // Criar usuário
+    if ($path === '/users' && $method === 'POST') {
+        echo json_encode($userController->create($isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Obter usuário específico
+    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'GET') {
+        $targetUserId = (int)$matches[1];
+        echo json_encode($userController->get($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Atualizar usuário
+    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'PUT') {
+        $targetUserId = (int)$matches[1];
+        echo json_encode($userController->update($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Desativar usuário
+    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'DELETE') {
+        $targetUserId = (int)$matches[1];
+        echo json_encode($userController->delete($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Resetar senha do usuário
+    if (preg_match('/^\/users\/(\d+)\/reset-password$/', $path, $matches) && $method === 'POST') {
+        $targetUserId = (int)$matches[1];
+        echo json_encode($userController->resetPassword($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas de Licenças
+    // ===========================
     
     if ($path === '/licenses' && $method === 'GET') {
         $controller = new LicenseController($db);
@@ -204,6 +232,7 @@ try {
         exit;
     }
     
+    // API Key antiga
     if ($path === '/auth/validate' && $method === 'GET') {
         validateApiKey();
         exit;
@@ -236,6 +265,7 @@ function healthCheck() {
         'features' => [
             'licensing' => 'enabled',
             'portal' => 'enabled',
+            'users' => 'enabled',
             'api_keys' => 'enabled'
         ]
     ];
