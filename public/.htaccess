@@ -5,7 +5,13 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Redirecionar tudo para index.php
+    # Permitir acesso direto a arquivos estáticos no /portal/ e /swagger/
+    RewriteCond %{REQUEST_URI} ^/(portal|swagger)/ [NC]
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Redirecionar tudo para index.php (exceto arquivos/diretórios existentes)
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]
@@ -20,6 +26,9 @@
 # CORS Headers
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type, X-API-Key"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, X-API-Key, Authorization"
 </IfModule>
+
+# Habilitar DirectoryIndex para index.html em subdiretórios
+DirectoryIndex index.html index.php
