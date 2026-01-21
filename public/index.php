@@ -3,57 +3,192 @@
 /**
  * 28Facil API - Servidor Principal
  * 
- * Endpoints:
- * - GET /               -> Health check
- * - GET /health         -> Health detalhado
- * - GET /api.json       -> OpenAPI spec
- * - GET /auth/validate  -> Validar API Key
+ * Sistema completo de licenciamento com portal web
  */
 
 header('Content-Type: application/json');
-header('X-Powered-By: 28Facil/1.0');
+header('X-Powered-By: 28Facil/2.0');
 
-// CORS (ajustar em produção)
+// CORS
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-API-Key');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-API-Key, Authorization, X-License-Key');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
+// Autoload classes
+spl_autoload_register(function ($class) {
+    $prefix = 'TwentyEightFacil\\';
+    $baseDir = __DIR__ . '/../src/';
+    
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+    
+    $relativeClass = substr($class, $len);
+    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+    
+    if (file_exists($file)) {
+        require $file;
+    }
+});
+
 // Carregar configurações
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../middleware/auth.php';
+
+use TwentyEightFacil\Controllers\AuthController;
+use TwentyEightFacil\Controllers\LicenseController;
 
 // Parse da URL
 $requestUri = $_SERVER['REQUEST_URI'];
 $path = parse_url($requestUri, PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Roteamento simples
-switch ($path) {
-    case '/':
-    case '/health':
+// Remove /api prefix se existir
+$path = preg_replace('/^\/api/', '', $path);
+
+// Roteamento
+try {
+    // Health Check (público)
+    if ($path === '/' || $path === '/health') {
         healthCheck();
-        break;
+        exit;
+    }
     
-    case '/api.json':
+    // API Spec (público)
+    if ($path === '/api.json') {
         apiSpec();
-        break;
+        exit;
+    }
     
-    case '/auth/validate':
+    // ===========================
+    // Rotas Públicas de Licenciamento
+    // ===========================
+    
+    // Validar purchase code (usado pela aplicação)
+    if ($path === '/license/validate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->validate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Ativar licença (usado pela aplicação)
+    if ($path === '/license/activate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->activate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Check licença (health check da aplicação)
+    if ($path === '/license/check' && $method === 'GET') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->check(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas de Autenticação (públicas)
+    // ===========================
+    
+    if ($path === '/auth/register' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->register(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/auth/login' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->login(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas Protegidas (requerem autenticação)
+    // ===========================
+    
+    // Obter token do header
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $token = str_replace('Bearer ', '', $authHeader);
+    
+    // Validar token
+    $userId = AuthController::validateToken($token);
+    
+    if (!$userId) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Não autenticado']);
+        exit;
+    }
+    
+    // Buscar dados do usuário
+    $stmt = $db->prepare("SELECT id, role FROM users WHERE id = ? AND status = 'active'");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $currentUser = $result->fetch_assoc();
+    
+    if (!$currentUser) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Usuário inválido ou inativo']);
+        exit;
+    }
+    
+    $isAdmin = $currentUser['role'] === 'admin';
+    
+    // Dados do usuário logado
+    if ($path === '/auth/me' && $method === 'GET') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->me($userId), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Listar licenças
+    if ($path === '/licenses' && $method === 'GET') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->list($userId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Criar licença (admin ou qualquer usuário para si mesmo)
+    if ($path === '/licenses' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->create($userId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // Detalhes de uma licença
+    if (preg_match('/^\/licenses\/(\d+)$/', $path, $matches) && $method === 'GET') {
+        $licenseId = (int)$matches[1];
+        $controller = new LicenseController($db);
+        echo json_encode($controller->get($licenseId, $userId, $isAdmin), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas antigas (API Keys)
+    // ===========================
+    
+    if ($path === '/auth/validate' && $method === 'GET') {
         validateApiKey();
-        break;
+        exit;
+    }
     
-    default:
-        notFound();
-        break;
+    // Rota não encontrada
+    notFound();
+    
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Erro interno do servidor',
+        'message' => $e->getMessage()
+    ], JSON_PRETTY_PRINT);
 }
 
 // =====================================================
-// ENDPOINTS
+// FUNÇÕES AUXILIARES
 // =====================================================
 
 function healthCheck() {
@@ -62,12 +197,16 @@ function healthCheck() {
     $response = [
         'status' => 'success',
         'message' => '28Facil API Server is running!',
-        'version' => '1.0.0',
+        'version' => '2.0.0',
         'timestamp' => date('c'),
         'php_version' => phpversion(),
+        'features' => [
+            'licensing' => 'enabled',
+            'portal' => 'enabled',
+            'api_keys' => 'enabled'
+        ]
     ];
     
-    // Verificar conexão com banco
     try {
         if ($db && $db->ping()) {
             $response['database'] = [
@@ -93,16 +232,13 @@ function apiSpec() {
         echo file_get_contents($specPath);
     } else {
         http_response_code(404);
-        echo json_encode([
-            'error' => 'API specification not found'
-        ]);
+        echo json_encode(['error' => 'API specification not found']);
     }
 }
 
 function validateApiKey() {
     global $db;
     
-    // Obter API Key do header
     $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? null;
     
     if (!$apiKey) {
@@ -114,7 +250,6 @@ function validateApiKey() {
         return;
     }
     
-    // Validar formato
     if (!str_starts_with($apiKey, '28fc_')) {
         http_response_code(401);
         echo json_encode([
@@ -124,10 +259,8 @@ function validateApiKey() {
         return;
     }
     
-    // Hash da key
     $keyHash = hash('sha256', $apiKey);
     
-    // Buscar no banco
     $stmt = $db->prepare("
         SELECT 
             id, user_id, name, key_prefix, 
@@ -143,7 +276,6 @@ function validateApiKey() {
     $result = $stmt->get_result();
     
     if ($row = $result->fetch_assoc()) {
-        // Atualizar estatísticas
         $updateStmt = $db->prepare("
             UPDATE api_keys 
             SET 
@@ -157,7 +289,6 @@ function validateApiKey() {
         $updateStmt->bind_param('si', $ip, $row['id']);
         $updateStmt->execute();
         
-        // Resposta de sucesso
         echo json_encode([
             'valid' => true,
             'user_id' => $row['user_id'],
@@ -169,7 +300,6 @@ function validateApiKey() {
             'last_used_at' => date('c')
         ], JSON_PRETTY_PRINT);
     } else {
-        // Key inválida
         http_response_code(401);
         echo json_encode([
             'valid' => false,
@@ -184,6 +314,7 @@ function notFound() {
     http_response_code(404);
     echo json_encode([
         'error' => 'Endpoint not found',
-        'message' => 'Check /api.json for available endpoints'
+        'message' => 'Check /api.json for available endpoints',
+        'portal' => 'https://api.28facil.com.br/portal/'
     ]);
 }
