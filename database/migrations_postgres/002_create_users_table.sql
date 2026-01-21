@@ -37,15 +37,18 @@ COMMENT ON COLUMN users.email IS 'Email único do usuário';
 COMMENT ON COLUMN users.password_hash IS 'Hash bcrypt da senha';
 
 -- Criar usuário admin padrão
--- Senha: Admin@2026 (bcrypt hash)
+-- Senha: admin123
+-- Hash gerado com: password_hash('admin123', PASSWORD_BCRYPT)
 INSERT INTO users (name, email, password_hash, role, email_verified_at) 
 VALUES (
     '28Facil Admin',
     'admin@28facil.com.br',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    '$2y$10$wMHnhGJN3lVGZqL0YLTd3.pPYqN0I8XqPkXW8yLFjLB8LHQW6Jj0K',
     'admin',
     CURRENT_TIMESTAMP
-) ON CONFLICT (email) DO NOTHING;
+) ON CONFLICT (email) DO UPDATE SET
+    password_hash = EXCLUDED.password_hash,
+    updated_at = CURRENT_TIMESTAMP;
 
 -- Verificar
 SELECT id, name, email, role, status, created_at FROM users;
