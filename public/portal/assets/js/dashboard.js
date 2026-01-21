@@ -2,15 +2,11 @@
  * Dashboard - 28Facil Portal
  * Versão com UIComponents integrado
  * Issue #3 - Melhorias de UX/UI
+ * Issue #2 - Autenticação via cookie httpOnly
  */
 
-// Check authentication
-const token = localStorage.getItem('token');
-const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-if (!token) {
-    window.location.href = '/portal/index.html';
-}
+// User data (sem token - agora é httpOnly cookie)
+let user = JSON.parse(localStorage.getItem('user') || '{}');
 
 // Cache
 let usersCache = [];
@@ -47,7 +43,45 @@ function updateThemeIcon(theme) {
 }
 
 // Initialize theme
-document.addEventListener('DOMContentLoaded', initTheme);
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    checkAuth();
+});
+
+// Verificar autenticação via cookie (httpOnly)
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/me', {
+            credentials: 'include' // Importante: enviar cookies
+        });
+        
+        if (!response.ok) {
+            // Não autenticado
+            window.location.href = '/portal/index.html';
+            return;
+        }
+        
+        const data = await response.json();
+        if (data.success && data.user) {
+            user = data.user;
+            localStorage.setItem('user', JSON.stringify(user));
+            displayUserInfo();
+            
+            // Mostrar botão de nova licença para admins
+            if (user.role === 'admin') {
+                document.getElementById('btn-new-license')?.classList.remove('hidden');
+            }
+            
+            // Carregar licenças
+            loadLicenses();
+        } else {
+            window.location.href = '/portal/index.html';
+        }
+    } catch (error) {
+        console.error('Auth error:', error);
+        window.location.href = '/portal/index.html';
+    }
+}
 
 // Display user information
 function displayUserInfo() {
@@ -72,16 +106,17 @@ function displayUserInfo() {
     }
 }
 
-displayUserInfo();
-
-// Show new license button for admins
-if (user.role === 'admin') {
-    document.getElementById('btn-new-license')?.classList.remove('hidden');
-}
-
 // Logout
-function logout() {
-    localStorage.removeItem('token');
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    
     localStorage.removeItem('user');
     localStorage.removeItem('theme');
     window.location.href = '/portal/index.html';
@@ -93,8 +128,8 @@ async function loadUsers() {
     
     try {
         const response = await fetch('/api/users', {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -145,8 +180,8 @@ async function loadLicenses() {
     
     try {
         const response = await fetch('/api/licenses', {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -426,8 +461,8 @@ async function createLicense(e) {
     try {
         const response = await fetch('/api/licenses', {
             method: 'POST',
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -469,8 +504,8 @@ async function viewLicenseDetails(licenseId) {
     
     try {
         const response = await fetch(`/api/licenses/${licenseId}`, {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -587,6 +622,3 @@ async function viewLicenseDetails(licenseId) {
         UIComponents.toast.error('❌ Erro de conexão');
     }
 }
-
-// Load licenses on page load
-loadLicenses();
