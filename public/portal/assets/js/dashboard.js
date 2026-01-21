@@ -1,3 +1,9 @@
+/**
+ * Dashboard - 28Facil Portal
+ * Versão com UIComponents integrado
+ * Issue #3 - Melhorias de UX/UI
+ */
+
 // Check authentication
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -5,6 +11,11 @@ const user = JSON.parse(localStorage.getItem('user') || '{}');
 if (!token) {
     window.location.href = '/portal/index.html';
 }
+
+// Cache
+let usersCache = [];
+let allLicenses = [];
+let filteredLicenses = [];
 
 // Theme Management
 function initTheme() {
@@ -43,19 +54,12 @@ function displayUserInfo() {
     const userName = user.name || 'Usuário';
     const userEmail = user.email || '';
     
-    // Set name
     const nameElement = document.getElementById('user-name');
-    if (nameElement) {
-        nameElement.textContent = userName;
-    }
+    if (nameElement) nameElement.textContent = userName;
     
-    // Set email
     const emailElement = document.getElementById('user-email');
-    if (emailElement) {
-        emailElement.textContent = userEmail;
-    }
+    if (emailElement) emailElement.textContent = userEmail;
     
-    // Set initials
     const initialsElement = document.getElementById('user-initials');
     if (initialsElement) {
         const initials = userName
@@ -68,12 +72,11 @@ function displayUserInfo() {
     }
 }
 
-// Call on page load
 displayUserInfo();
 
 // Show new license button for admins
 if (user.role === 'admin') {
-    document.getElementById('btn-new-license').classList.remove('hidden');
+    document.getElementById('btn-new-license')?.classList.remove('hidden');
 }
 
 // Logout
@@ -83,9 +86,6 @@ function logout() {
     localStorage.removeItem('theme');
     window.location.href = '/portal/index.html';
 }
-
-// Cache de usuários
-let usersCache = [];
 
 // Load users (for admin)
 async function loadUsers() {
@@ -111,7 +111,7 @@ async function loadUsers() {
     return [];
 }
 
-// Get user name by ID
+// Get user info by ID
 function getUserNameById(userId) {
     const foundUser = usersCache.find(u => u.id == userId);
     return foundUser ? foundUser.name : 'Desconhecido';
@@ -124,7 +124,19 @@ function getUserEmailById(userId) {
 
 // Load licenses
 async function loadLicenses() {
-    const container = document.getElementById('licenses-container');
+    const statsContainer = document.getElementById('stats-container');
+    const licensesContainer = document.getElementById('licenses-container');
+    
+    // Mostrar loading skeletons
+    if (statsContainer) {
+        statsContainer.innerHTML = `
+            ${UIComponents.loading.cardSkeleton()}
+            ${UIComponents.loading.cardSkeleton()}
+            ${UIComponents.loading.cardSkeleton()}
+        `;
+    }
+    
+    UIComponents.loading.show('licenses-container', 'card', 6);
     
     // Load users first (for admin)
     if (user.role === 'admin') {
@@ -148,35 +160,36 @@ async function loadLicenses() {
         }
         
         const data = await response.json();
-        const licenses = data.licenses || [];
+        allLicenses = data.licenses || [];
+        filteredLicenses = [...allLicenses];
         
         // Update stats
-        updateStats(licenses);
+        updateStats(allLicenses);
+        
+        // Resetar paginação
+        UIComponents.pagination.reset();
         
         // Render licenses
-        if (licenses.length === 0) {
-            container.innerHTML = `
-                <div class="glass-effect rounded-lg shadow-xl p-12 text-center">
-                    <svg class="mx-auto h-16 w-16 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <p class="text-slate-300 text-lg mb-4">Nenhuma licença encontrada</p>
-                    ${user.role === 'admin' ? '<button onclick="showNewLicenseModal()" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105">Criar Primeira Licença</button>' : '<p class="text-slate-400 text-sm">Entre em contato com o administrador para obter uma licença</p>'}
-                </div>
-            `;
-        } else {
-            container.innerHTML = licenses.map(license => renderLicense(license)).join('');
-        }
+        renderLicenses();
+        
+        // Render busca
+        renderSearch();
+        
+        UIComponents.toast.success('✅ Dashboard carregado!');
     } catch (error) {
-        container.innerHTML = `
-            <div class="glass-effect rounded-lg shadow-xl p-12 text-center">
-                <svg class="mx-auto h-16 w-16 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <p class="text-red-300">${error.message}</p>
-            </div>
-        `;
+        console.error('Error loading licenses:', error);
+        UIComponents.toast.error('❌ Erro ao carregar licenças');
+        renderEmptyState(true);
     }
+}
+
+// Renderizar campo de busca
+function renderSearch() {
+    UIComponents.search.render('search-container', 'Buscar por produto ou purchase code...', (searchTerm) => {
+        filteredLicenses = UIComponents.search.filter(allLicenses, searchTerm, ['product_name', 'purchase_code']);
+        UIComponents.pagination.reset();
+        renderLicenses();
+    });
 }
 
 // Update stats with animation
@@ -184,6 +197,44 @@ function updateStats(licenses) {
     const total = licenses.length;
     const active = licenses.filter(l => l.status === 'active').length;
     const activations = licenses.reduce((sum, l) => sum + parseInt(l.active_activations || 0), 0);
+    
+    const statsContainer = document.getElementById('stats-container');
+    if (statsContainer) {
+        statsContainer.innerHTML = `
+            <div class="card-hover bg-slate-800 rounded-lg p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-slate-400 text-sm font-medium">Total de Licenças</p>
+                    <svg class="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <p id="stat-total" class="text-3xl font-bold text-white mb-1">0</p>
+                <p class="text-xs text-slate-500">Licenças cadastradas</p>
+            </div>
+            
+            <div class="card-hover bg-slate-800 rounded-lg p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-slate-400 text-sm font-medium">Licenças Ativas</p>
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <p id="stat-active" class="text-3xl font-bold text-white mb-1">0</p>
+                <p class="text-xs text-slate-500">Em uso no momento</p>
+            </div>
+            
+            <div class="card-hover bg-slate-800 rounded-lg p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-slate-400 text-sm font-medium">Ativações</p>
+                    <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+                <p id="stat-activations" class="text-3xl font-bold text-white mb-1">0</p>
+                <p class="text-xs text-slate-500">Total de domínios ativos</p>
+            </div>
+        `;
+    }
     
     animateValue('stat-total', 0, total, 1000);
     animateValue('stat-active', 0, active, 1000);
@@ -211,13 +262,64 @@ function animateValue(elementId, start, end, duration) {
     requestAnimationFrame(update);
 }
 
+// Renderizar licenças
+function renderLicenses() {
+    const container = document.getElementById('licenses-container');
+    
+    if (!filteredLicenses || filteredLicenses.length === 0) {
+        renderEmptyState(false);
+        document.getElementById('pagination-container').innerHTML = '';
+        return;
+    }
+    
+    // Paginar dados (9 por página = 3x3 grid)
+    UIComponents.pagination.itemsPerPage = 9;
+    const paginatedData = UIComponents.pagination.paginate(filteredLicenses);
+    
+    container.innerHTML = paginatedData.map(license => renderLicense(license)).join('');
+    
+    // Renderizar paginação
+    UIComponents.pagination.render('pagination-container', filteredLicenses.length, () => {
+        renderLicenses();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
+function renderEmptyState(isError) {
+    const container = document.getElementById('licenses-container');
+    
+    if (isError) {
+        UIComponents.emptyState.render('licenses-container', {
+            icon: '❌',
+            title: 'Erro ao carregar licenças',
+            description: 'Tente recarregar a página',
+            buttonText: '🔄 Recarregar',
+            buttonAction: 'location.reload()'
+        });
+    } else {
+        const isSearchResult = filteredLicenses.length === 0 && allLicenses.length > 0;
+        
+        UIComponents.emptyState.render('licenses-container', {
+            icon: isSearchResult ? '🔍' : '📄',
+            title: isSearchResult ? 'Nenhum resultado encontrado' : 'Nenhuma licença encontrada',
+            description: isSearchResult 
+                ? 'Tente uma busca diferente' 
+                : (user.role === 'admin' 
+                    ? 'Crie sua primeira licença para começar' 
+                    : 'Entre em contato com o administrador'),
+            buttonText: (user.role === 'admin' && !isSearchResult) ? '+ Nova Licença' : null,
+            buttonAction: (user.role === 'admin' && !isSearchResult) ? 'showNewLicenseModal()' : null
+        });
+    }
+}
+
 // Render license card
 function renderLicense(license) {
     const statusColors = {
-        active: 'bg-green-500/20 text-green-300 border-green-500',
-        expired: 'bg-red-500/20 text-red-300 border-red-500',
-        suspended: 'bg-yellow-500/20 text-yellow-300 border-yellow-500',
-        revoked: 'bg-gray-500/20 text-gray-300 border-gray-500'
+        active: 'badge-success',
+        expired: 'badge-error',
+        suspended: 'badge-warning',
+        revoked: 'badge-error'
     };
     
     const typeLabels = {
@@ -227,72 +329,74 @@ function renderLicense(license) {
         trial: 'Trial'
     };
     
-    // Get owner info
     const ownerName = getUserNameById(license.user_id);
     const ownerEmail = getUserEmailById(license.user_id);
     
     return `
-        <div class="glass-effect rounded-lg shadow-xl p-6 hover:scale-105 transition-all duration-300 animate-slide-in">
+        <div class="card-hover bg-slate-800 rounded-lg p-6 animate-fade-in">
             <div class="flex justify-between items-start mb-4">
                 <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-white">${license.product_name}</h3>
+                    <h3 class="text-lg font-semibold text-white mb-1">${license.product_name}</h3>
                     ${user.role === 'admin' && ownerName !== 'Desconhecido' ? `
-                        <div class="mt-1 flex items-center space-x-2">
-                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                            </svg>
+                        <div class="flex items-center space-x-2 mt-2">
+                            <div class="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                                <span class="text-white text-xs font-bold">${ownerName.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()}</span>
+                            </div>
                             <div>
-                                <p class="text-sm text-indigo-400 font-medium">${ownerName}</p>
-                                <p class="text-xs text-slate-500">${ownerEmail}</p>
+                                <p class="text-xs text-indigo-400 font-medium">${ownerName}</p>
                             </div>
                         </div>
                     ` : ''}
-                    <p class="text-sm text-slate-400 mt-2">Criada em ${new Date(license.created_at).toLocaleDateString('pt-BR')}</p>
                 </div>
-                <span class="px-3 py-1 text-xs font-semibold rounded-lg border ${statusColors[license.status]}">
+                <span class="badge ${statusColors[license.status]}">
                     ${license.status.toUpperCase()}
                 </span>
             </div>
             
-            <div class="space-y-3 mb-4">
-                <div class="flex justify-between text-sm">
+            <div class="space-y-2 mb-4 text-sm">
+                <div class="flex items-center justify-between">
                     <span class="text-slate-400">Purchase Code:</span>
-                    <code class="font-mono text-indigo-400 font-semibold">${license.purchase_code}</code>
+                    <div class="flex items-center space-x-2">
+                        <code class="font-mono text-indigo-400 text-xs">${license.purchase_code.substring(0, 12)}...</code>
+                        ${UIComponents.clipboard.button(license.purchase_code, '')}
+                    </div>
                 </div>
-                <div class="flex justify-between text-sm">
+                <div class="flex justify-between">
                     <span class="text-slate-400">Tipo:</span>
                     <span class="font-medium text-white">${typeLabels[license.license_type]}</span>
                 </div>
-                <div class="flex justify-between text-sm">
+                <div class="flex justify-between">
                     <span class="text-slate-400">Ativações:</span>
-                    <span class="font-medium text-white">${license.active_activations || 0} / ${license.max_activations}</span>
+                    <span class="font-medium text-white">${license.active_activations || 0}/${license.max_activations}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Criada:</span>
+                    <span class="text-slate-300 text-xs">${new Date(license.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
             </div>
             
             <button onclick="viewLicenseDetails(${license.id})" 
-                    class="w-full py-3 px-4 bg-indigo-600/50 hover:bg-indigo-600 text-white font-medium rounded-lg transition-all">
+                    class="w-full py-2 px-4 bg-indigo-600/50 hover:bg-indigo-600 text-white font-medium rounded-lg transition-all">
                 Ver Detalhes
             </button>
         </div>
     `;
 }
 
-// Modal functions
+// Modal: Nova Licença
 async function showNewLicenseModal() {
     const modal = document.getElementById('modal-new-license');
     const select = document.getElementById('new-user-id');
     
     modal.classList.remove('hidden');
     
-    // Load users if not loaded
     if (usersCache.length === 0) {
         await loadUsers();
     }
     
-    // Populate select
     select.innerHTML = '<option value="">Selecione um cliente...</option>' +
         usersCache
-            .filter(u => u.role === 'customer') // Apenas clientes
+            .filter(u => u.role === 'customer')
             .map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`)
             .join('');
 }
@@ -301,7 +405,7 @@ function closeModal() {
     document.getElementById('modal-new-license').classList.add('hidden');
 }
 
-// Create new license
+// Criar licença
 async function createLicense(e) {
     e.preventDefault();
     
@@ -312,7 +416,7 @@ async function createLicense(e) {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     
     if (!userId) {
-        showNotification('Selecione um cliente!', 'error');
+        UIComponents.toast.warning('⚠ Selecione um cliente!');
         return;
     }
     
@@ -338,47 +442,30 @@ async function createLicense(e) {
         
         if (response.ok && data.success) {
             closeModal();
-            loadLicenses();
+            await loadLicenses();
             
             const userName = getUserNameById(userId);
-            showNotification(`Licença criada com sucesso para ${userName}!`, 'success');
+            UIComponents.toast.success(`✅ Licença criada para ${userName}!`);
         } else {
-            showNotification(data.error || 'Erro ao criar licença', 'error');
+            UIComponents.toast.error(data.error || '❌ Erro ao criar licença');
         }
     } catch (error) {
-        showNotification('Erro de conexão. Tente novamente.', 'error');
+        UIComponents.toast.error('❌ Erro de conexão. Tente novamente.');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Criar';
     }
 }
 
-// Show notification
-function showNotification(message, type = 'info') {
-    const colors = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        info: 'bg-blue-500'
-    };
-    
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-
-// View license details
+// Ver detalhes da licença
 async function viewLicenseDetails(licenseId) {
-    const modal = document.getElementById('modal-license-details');
-    const content = document.getElementById('license-details-content');
-    
-    modal.classList.remove('hidden');
-    content.innerHTML = '<p class="text-center text-slate-300">Carregando...</p>';
+    UIComponents.modal.show({
+        title: '📄 Detalhes da Licença',
+        body: '<p class="text-center text-slate-300">Carregando...</p>',
+        confirmText: 'Fechar',
+        cancelText: '',
+        size: 'lg'
+    });
     
     try {
         const response = await fetch(`/api/licenses/${licenseId}`, {
@@ -396,12 +483,12 @@ async function viewLicenseDetails(licenseId) {
             const ownerName = getUserNameById(license.user_id);
             const ownerEmail = getUserEmailById(license.user_id);
             
-            content.innerHTML = `
-                <div class="bg-slate-800 rounded-lg p-4 space-y-3">
+            const modalBody = `
+                <div class="bg-slate-900 rounded-lg p-4 space-y-3 mb-4">
                     <div class="grid grid-cols-2 gap-4">
                         ${user.role === 'admin' ? `
-                        <div class="col-span-2">
-                            <p class="text-xs text-slate-400 mb-1">Cliente</p>
+                        <div class="col-span-2 pb-3 border-b border-slate-700">
+                            <p class="text-xs text-slate-400 mb-2">Cliente</p>
                             <div class="flex items-center space-x-2">
                                 <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
                                     <span class="text-white text-xs font-bold">${ownerName.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()}</span>
@@ -413,13 +500,19 @@ async function viewLicenseDetails(licenseId) {
                             </div>
                         </div>
                         ` : ''}
-                        <div>
+                        <div class="col-span-2">
                             <p class="text-xs text-slate-400 mb-1">Purchase Code</p>
-                            <p class="font-mono text-sm font-semibold text-indigo-400">${license.purchase_code}</p>
+                            <div class="flex items-center justify-between bg-slate-800 rounded px-3 py-2">
+                                <code class="font-mono text-sm font-semibold text-indigo-400">${license.purchase_code}</code>
+                                ${UIComponents.clipboard.button(license.purchase_code, 'Copiar')}
+                            </div>
                         </div>
-                        <div>
+                        <div class="col-span-2">
                             <p class="text-xs text-slate-400 mb-1">UUID</p>
-                            <p class="font-mono text-xs text-slate-300">${license.uuid}</p>
+                            <div class="flex items-center justify-between bg-slate-800 rounded px-3 py-2">
+                                <code class="font-mono text-xs text-slate-300">${license.uuid}</code>
+                                ${UIComponents.clipboard.button(license.uuid, 'Copiar')}
+                            </div>
                         </div>
                         <div>
                             <p class="text-xs text-slate-400 mb-1">Produto</p>
@@ -431,27 +524,33 @@ async function viewLicenseDetails(licenseId) {
                         </div>
                         <div>
                             <p class="text-xs text-slate-400 mb-1">Status</p>
-                            <p class="font-medium text-white">${license.status}</p>
+                            <span class="badge badge-${license.status === 'active' ? 'success' : 'error'}">${license.status}</span>
                         </div>
                         <div>
                             <p class="text-xs text-slate-400 mb-1">Ativações</p>
-                            <p class="font-medium text-white">${activations.filter(a => a.status === 'active').length} / ${license.max_activations}</p>
+                            <p class="font-medium text-white">${activations.filter(a => a.status === 'active').length}/${license.max_activations}</p>
                         </div>
                     </div>
                 </div>
                 
-                <div class="mt-6">
-                    <h4 class="font-semibold text-white mb-3">Ativações (${activations.length})</h4>
+                <div>
+                    <h4 class="font-semibold text-white mb-3 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                        </svg>
+                        Ativações (${activations.length})
+                    </h4>
                     ${activations.length === 0 ? 
-                        '<p class="text-slate-400 text-sm">Nenhuma ativação ainda</p>' :
+                        '<p class="text-slate-400 text-sm text-center py-4">Nenhuma ativação ainda</p>' :
+                        '<div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">' +
                         activations.map(a => `
-                            <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 mb-3">
+                            <div class="bg-slate-800 border border-slate-700 rounded-lg p-3">
                                 <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <p class="font-medium text-white">${a.domain}</p>
+                                    <div class="flex-1">
+                                        <p class="font-medium text-white text-sm">${a.domain}</p>
                                         <p class="text-xs text-slate-400">${a.installation_name || 'N/A'}</p>
                                     </div>
-                                    <span class="px-2 py-1 text-xs font-semibold rounded ${a.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}">
+                                    <span class="badge ${a.status === 'active' ? 'badge-success' : 'badge-error'} text-xs">
                                         ${a.status}
                                     </span>
                                 </div>
@@ -462,25 +561,31 @@ async function viewLicenseDetails(licenseId) {
                                     <div>
                                         <span class="font-medium">Último check:</span> ${a.last_check_at ? new Date(a.last_check_at).toLocaleDateString('pt-BR') : 'Nunca'}
                                     </div>
-                                    <div class="col-span-2">
-                                        <span class="font-medium">License Key:</span> <code class="font-mono text-indigo-400">${a.license_key.substring(0, 20)}...</code>
-                                    </div>
                                 </div>
                             </div>
-                        `).join('')
+                        `).join('') +
+                        '</div>'
                     }
                 </div>
             `;
+            
+            // Atualizar modal (fechar e reabrir com conteúdo)
+            const modals = document.querySelectorAll('[id^="modal-"]');
+            modals.forEach(m => m.remove());
+            
+            UIComponents.modal.show({
+                title: '📄 Detalhes da Licença',
+                body: modalBody,
+                confirmText: 'Fechar',
+                cancelText: '',
+                size: 'lg'
+            });
         } else {
-            content.innerHTML = `<p class="text-red-300">${data.error || 'Erro ao carregar detalhes'}</p>`;
+            UIComponents.toast.error(data.error || '❌ Erro ao carregar detalhes');
         }
     } catch (error) {
-        content.innerHTML = `<p class="text-red-300">Erro de conexão</p>`;
+        UIComponents.toast.error('❌ Erro de conexão');
     }
-}
-
-function closeLicenseDetails() {
-    document.getElementById('modal-license-details').classList.add('hidden');
 }
 
 // Load licenses on page load
