@@ -171,6 +171,36 @@ try {
         exit;
     }
     
+    // Listar usuários (apenas admin)
+    if ($path === '/users' && $method === 'GET') {
+        if (!$isAdmin) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Acesso negado. Apenas administradores.']);
+            exit;
+        }
+        
+        $stmt = $db->prepare("
+            SELECT id, name, email, role, status, created_at 
+            FROM users 
+            WHERE status = 'active'
+            ORDER BY name ASC
+        ");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $users = [];
+        while ($row = $result->fetch_assoc()) {
+            $users[] = $row;
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'users' => $users,
+            'count' => count($users)
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+    
     // Listar licenças
     if ($path === '/licenses' && $method === 'GET') {
         $controller = new LicenseController($db);
