@@ -163,17 +163,33 @@ class AuthController
     }
     
     /**
+     * Base64 URL-safe encode (sem padding)
+     */
+    private static function base64UrlEncode($data)
+    {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+    
+    /**
+     * Base64 URL-safe decode
+     */
+    private static function base64UrlDecode($data)
+    {
+        return base64_decode(strtr($data, '-_', '+/'));
+    }
+    
+    /**
      * Gerar token JWT simples
      */
     private function generateToken($userId)
     {
-        $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-        $payload = base64_encode(json_encode([
+        $header = self::base64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+        $payload = self::base64UrlEncode(json_encode([
             'user_id' => $userId,
             'exp' => time() + (86400 * 30) // 30 dias
         ]));
         $secret = getenv('JWT_SECRET') ?: '28facil_secret_change_in_production';
-        $signature = base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+        $signature = self::base64UrlEncode(hash_hmac('sha256', "$header.$payload", $secret, true));
         
         return "$header.$payload.$signature";
     }
@@ -191,11 +207,11 @@ class AuthController
         list($header, $payload, $signature) = $parts;
         
         $secret = getenv('JWT_SECRET') ?: '28facil_secret_change_in_production';
-        $expectedSignature = base64_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+        $expectedSignature = self::base64UrlEncode(hash_hmac('sha256', "$header.$payload", $secret, true));
         
         if ($signature !== $expectedSignature) return null;
         
-        $data = json_decode(base64_decode($payload), true);
+        $data = json_decode(self::base64UrlDecode($payload), true);
         
         if (!$data || $data['exp'] < time()) return null;
         
