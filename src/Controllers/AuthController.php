@@ -40,10 +40,10 @@ class AuthController
         }
         
         // Verificar se email já existe
-        $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        if ($stmt->get_result()->num_rows > 0) {
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE email = :email");
+        $stmt->execute(['email' => $email]);
+        
+        if ($stmt->fetch()) {
             http_response_code(409);
             return ['error' => 'Email já cadastrado'];
         }
@@ -52,29 +52,31 @@ class AuthController
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         $stmt = $this->db->prepare("
             INSERT INTO users (name, email, password_hash, role) 
-            VALUES (?, ?, ?, 'customer')
+            VALUES (:name, :email, :password_hash, 'customer')
+            RETURNING id
         ");
-        $stmt->bind_param('sss', $name, $email, $passwordHash);
         
-        if ($stmt->execute()) {
-            $userId = $stmt->insert_id;
-            $token = $this->generateToken($userId);
-            
-            return [
-                'success' => true,
-                'message' => 'Usuário criado com sucesso',
-                'user' => [
-                    'id' => $userId,
-                    'name' => $name,
-                    'email' => $email,
-                    'role' => 'customer'
-                ],
-                'token' => $token
-            ];
-        }
+        $stmt->execute([
+            'name' => $name,
+            'email' => $email,
+            'password_hash' => $passwordHash
+        ]);
         
-        http_response_code(500);
-        return ['error' => 'Erro ao criar usuário'];
+        $result = $stmt->fetch();
+        $userId = $result['id'];
+        $token = $this->generateToken($userId);
+        
+        return [
+            'success' => true,
+            'message' => 'Usuário criado com sucesso',
+            'user' => [
+                'id' => $userId,
+                'name' => $name,
+                'email' => $email,
+                'role' => 'customer'
+            ],
+            'token' => $token
+        ];
     }
     
     /**
@@ -97,34 +99,33 @@ class AuthController
         $stmt = $this->db->prepare("
             SELECT id, name, email, password_hash, role, status 
             FROM users 
-            WHERE email = ?
+            WHERE email = :email
         ");
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt->execute(['email' => $email]);
         
-        if ($row = $result->fetch_assoc()) {
-            if ($row['status'] !== 'active') {
+        $user = $stmt->fetch();
+        
+        if ($user) {
+            if ($user['status'] !== 'active') {
                 http_response_code(403);
                 return ['error' => 'Usuário inativo ou suspenso'];
             }
             
-            if (password_verify($password, $row['password_hash'])) {
+            if (password_verify($password, $user['password_hash'])) {
                 // Atualizar last_login
-                $updateStmt = $this->db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
-                $updateStmt->bind_param('i', $row['id']);
-                $updateStmt->execute();
+                $updateStmt = $this->db->prepare("UPDATE users SET last_login_at = NOW() WHERE id = :id");
+                $updateStmt->execute(['id' => $user['id']]);
                 
-                $token = $this->generateToken($row['id']);
+                $token = $this->generateToken($user['id']);
                 
                 return [
                     'success' => true,
                     'message' => 'Login realizado com sucesso',
                     'user' => [
-                        'id' => $row['id'],
-                        'name' => $row['name'],
-                        'email' => $row['email'],
-                        'role' => $row['role']
+                        'id' => $user['id'],
+                        'name' => $user['name'],
+                        'email' => $user['email'],
+                        'role' => $user['role']
                     ],
                     'token' => $token
                 ];
@@ -144,16 +145,16 @@ class AuthController
         $stmt = $this->db->prepare("
             SELECT id, name, email, role, status, created_at, last_login_at
             FROM users 
-            WHERE id = ?
+            WHERE id = :id
         ");
-        $stmt->bind_param('i', $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt->execute(['id' => $userId]);
         
-        if ($row = $result->fetch_assoc()) {
+        $user = $stmt->fetch();
+        
+        if ($user) {
             return [
                 'success' => true,
-                'user' => $row
+                'user' => $user
             ];
         }
         
