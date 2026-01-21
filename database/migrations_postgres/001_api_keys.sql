@@ -1,12 +1,29 @@
 -- =====================================================
 -- MIGRAÇÃO: Sistema de API Keys - 28Fácil
 -- Compatível com PostgreSQL 16+
--- Convertido de MySQL para PostgreSQL
+-- IDEMPOTENTE: Pode ser executada múltiplas vezes
 -- =====================================================
 
--- Criar tipos ENUM personalizados
-CREATE TYPE api_key_status AS ENUM ('active', 'revoked');
-CREATE TYPE http_method AS ENUM ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD');
+-- Criar tipos ENUM personalizados (se não existirem)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'api_key_status') THEN
+        CREATE TYPE api_key_status AS ENUM ('active', 'revoked');
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'http_method') THEN
+        CREATE TYPE http_method AS ENUM ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD');
+    END IF;
+END $$;
+
+-- Função de trigger para updated_at (se não existir)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
 -- Tabela principal de API Keys
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -43,15 +60,22 @@ CREATE TABLE IF NOT EXISTS api_keys (
     revoked_reason TEXT NULL
 );
 
--- Índices otimizados
-CREATE INDEX idx_api_keys_key_hash ON api_keys(key_hash);
-CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
-CREATE INDEX idx_api_keys_is_active ON api_keys(is_active);
-CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
-CREATE INDEX idx_api_keys_created_at ON api_keys(created_at DESC);
+-- Índices otimizados (se não existirem)
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+CREATE INDEX IF NOT EXISTS idx_api_keys_expires_at ON api_keys(expires_at);
+CREATE INDEX IF NOT EXISTS idx_api_keys_created_at ON api_keys(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_keys_permissions_gin ON api_keys USING GIN (permissions);
 
--- Índice GIN para busca JSON
-CREATE INDEX idx_api_keys_permissions_gin ON api_keys USING GIN (permissions);
+-- Trigger para updated_at (se não existir)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_api_keys_updated_at') THEN
+        CREATE TRIGGER update_api_keys_updated_at BEFORE UPDATE ON api_keys
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- Comentários
 COMMENT ON TABLE api_keys IS 'API Keys do sistema 28Fácil';
@@ -59,18 +83,6 @@ COMMENT ON COLUMN api_keys.key_hash IS 'Hash SHA256 da API key completa';
 COMMENT ON COLUMN api_keys.key_prefix IS 'Prefixo visível (ex: 28fc_a1b2c3d4)';
 COMMENT ON COLUMN api_keys.permissions IS 'Array de permissões: ["read", "write", "delete"]';
 COMMENT ON COLUMN api_keys.rate_limit IS 'Requisições permitidas por hora';
-
--- Trigger para atualizar updated_at automaticamente
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_api_keys_updated_at BEFORE UPDATE ON api_keys
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Tabela de Logs de Uso (OPCIONAL - para auditoria detalhada)
 CREATE TABLE IF NOT EXISTS api_key_logs (
@@ -89,21 +101,31 @@ CREATE TABLE IF NOT EXISTS api_key_logs (
     error_message TEXT NULL,
     
     -- Timestamp
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Chave estrangeira
-    FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Índices para logs
-CREATE INDEX idx_api_key_logs_api_key_id ON api_key_logs(api_key_id);
-CREATE INDEX idx_api_key_logs_created_at ON api_key_logs(created_at DESC);
-CREATE INDEX idx_api_key_logs_endpoint ON api_key_logs(endpoint);
-CREATE INDEX idx_api_key_logs_status_code ON api_key_logs(status_code);
+-- Adicionar FK se não existir
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'api_key_logs_api_key_id_fkey'
+    ) THEN
+        ALTER TABLE api_key_logs
+        ADD CONSTRAINT api_key_logs_api_key_id_fkey
+        FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- Índices para logs (se não existirem)
+CREATE INDEX IF NOT EXISTS idx_api_key_logs_api_key_id ON api_key_logs(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_api_key_logs_created_at ON api_key_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_key_logs_endpoint ON api_key_logs(endpoint);
+CREATE INDEX IF NOT EXISTS idx_api_key_logs_status_code ON api_key_logs(status_code);
 
 COMMENT ON TABLE api_key_logs IS 'Logs de uso das API Keys';
 
--- Inserir exemplo de teste
+-- Inserir exemplo de teste (se não existir)
 INSERT INTO api_keys (
     key_hash,
     key_prefix,
@@ -132,16 +154,3 @@ SELECT
     usage_count,
     created_at
 FROM api_keys;
-
--- =====================================================
--- ROW-LEVEL SECURITY (RLS) - Preparado para Multi-Tenant
--- =====================================================
--- Descomentar quando necessário:
-
--- ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
-
--- CREATE POLICY api_keys_isolation ON api_keys
---     USING (user_id = current_setting('app.current_user_id')::bigint);
-
--- CREATE POLICY api_keys_admin_all ON api_keys
---     USING (current_setting('app.user_role', true) = 'admin');
