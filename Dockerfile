@@ -34,24 +34,29 @@ RUN echo "date.timezone = America/Sao_Paulo" > /usr/local/etc/php/conf.d/timezon
     && echo "post_max_size = 50M" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/custom.ini
 
-# Configurar DocumentRoot do Apache
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
-    && sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/apache2.conf
+# Definir working directory
+WORKDIR /var/www/html
 
-# Adicionar configuração de .htaccess
-RUN echo '<Directory /var/www/html/public>' >> /etc/apache2/apache2.conf \
+# Copiar código da aplicação ANTES de configurar o Apache
+COPY . /var/www/html/
+
+# Verificar se o diretório public existe, se não, criar
+RUN mkdir -p /var/www/html/public
+
+# Configurar DocumentRoot do Apache DEPOIS de copiar os arquivos
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
+    && sed -i 's|DocumentRoot /var/www/html/public|DocumentRoot /var/www/html/public|g' /etc/apache2/apache2.conf
+
+# Adicionar configuração de .htaccess e ServerName
+RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf \
+    && echo '<Directory /var/www/html/public>' >> /etc/apache2/apache2.conf \
     && echo '    AllowOverride All' >> /etc/apache2/apache2.conf \
     && echo '    Require all granted' >> /etc/apache2/apache2.conf \
+    && echo '    Options -Indexes +FollowSymLinks' >> /etc/apache2/apache2.conf \
     && echo '</Directory>' >> /etc/apache2/apache2.conf
 
 # Criar diretório de logs
 RUN mkdir -p /var/www/html/logs && chmod 777 /var/www/html/logs
-
-# Definir working directory
-WORKDIR /var/www/html
-
-# Copiar código da aplicação
-COPY . /var/www/html/
 
 # Copiar e dar permissão ao entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -59,7 +64,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Definir permissões
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+    && chmod -R 755 /var/www/html \
+    && chmod -R 777 /var/www/html/logs
 
 # Expor porta 80
 EXPOSE 80
