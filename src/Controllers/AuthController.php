@@ -152,11 +152,14 @@ class AuthController
         setcookie(
             '28facil_token',
             '',
-            time() - 3600,
-            '/',
-            '',
-            isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
-            true
+            [
+                'expires' => time() - 3600,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]
         );
         
         return [
@@ -199,14 +202,16 @@ class AuthController
         $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
         
         setcookie(
-            '28facil_token',           // Nome do cookie
-            $token,                    // Valor (JWT)
-            time() + (86400 * 7),      // Expira em 7 dias
-            '/',                       // Path
-            '',                        // Domain (vazio = current domain)
-            $isSecure,                 // Secure (apenas HTTPS em produção)
-            true,                      // HttpOnly (não acessível via JS)
-            'Strict'                   // SameSite (proteção CSRF)
+            '28facil_token',
+            $token,
+            [
+                'expires' => time() + (86400 * 7),  // 7 dias
+                'path' => '/',
+                'domain' => '',
+                'secure' => $isSecure,
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]
         );
     }
     
