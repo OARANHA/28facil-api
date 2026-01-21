@@ -84,9 +84,52 @@ function logout() {
     window.location.href = '/portal/index.html';
 }
 
+// Cache de usuários
+let usersCache = [];
+
+// Load users (for admin)
+async function loadUsers() {
+    if (user.role !== 'admin') return [];
+    
+    try {
+        const response = await fetch('/api/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            usersCache = data.users || [];
+            return usersCache;
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+    
+    return [];
+}
+
+// Get user name by ID
+function getUserNameById(userId) {
+    const foundUser = usersCache.find(u => u.id == userId);
+    return foundUser ? foundUser.name : 'Desconhecido';
+}
+
+function getUserEmailById(userId) {
+    const foundUser = usersCache.find(u => u.id == userId);
+    return foundUser ? foundUser.email : '';
+}
+
 // Load licenses
 async function loadLicenses() {
     const container = document.getElementById('licenses-container');
+    
+    // Load users first (for admin)
+    if (user.role === 'admin') {
+        await loadUsers();
+    }
     
     try {
         const response = await fetch('/api/licenses', {
@@ -184,12 +227,27 @@ function renderLicense(license) {
         trial: 'Trial'
     };
     
+    // Get owner info
+    const ownerName = getUserNameById(license.user_id);
+    const ownerEmail = getUserEmailById(license.user_id);
+    
     return `
         <div class="glass-effect rounded-lg shadow-xl p-6 hover:scale-105 transition-all duration-300 animate-slide-in">
             <div class="flex justify-between items-start mb-4">
-                <div>
+                <div class="flex-1">
                     <h3 class="text-lg font-semibold text-white">${license.product_name}</h3>
-                    <p class="text-sm text-slate-400">Criada em ${new Date(license.created_at).toLocaleDateString('pt-BR')}</p>
+                    ${user.role === 'admin' && ownerName !== 'Desconhecido' ? `
+                        <div class="mt-1 flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <div>
+                                <p class="text-sm text-indigo-400 font-medium">${ownerName}</p>
+                                <p class="text-xs text-slate-500">${ownerEmail}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                    <p class="text-sm text-slate-400 mt-2">Criada em ${new Date(license.created_at).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <span class="px-3 py-1 text-xs font-semibold rounded-lg border ${statusColors[license.status]}">
                     ${license.status.toUpperCase()}
@@ -220,8 +278,23 @@ function renderLicense(license) {
 }
 
 // Modal functions
-function showNewLicenseModal() {
-    document.getElementById('modal-new-license').classList.remove('hidden');
+async function showNewLicenseModal() {
+    const modal = document.getElementById('modal-new-license');
+    const select = document.getElementById('new-user-id');
+    
+    modal.classList.remove('hidden');
+    
+    // Load users if not loaded
+    if (usersCache.length === 0) {
+        await loadUsers();
+    }
+    
+    // Populate select
+    select.innerHTML = '<option value="">Selecione um cliente...</option>' +
+        usersCache
+            .filter(u => u.role === 'customer') // Apenas clientes
+            .map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`)
+            .join('');
 }
 
 function closeModal() {
@@ -232,10 +305,16 @@ function closeModal() {
 async function createLicense(e) {
     e.preventDefault();
     
+    const userId = document.getElementById('new-user-id').value;
     const productName = document.getElementById('new-product').value;
     const licenseType = document.getElementById('new-type').value;
     const maxActivations = document.getElementById('new-activations').value;
     const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    if (!userId) {
+        showNotification('Selecione um cliente!', 'error');
+        return;
+    }
     
     submitBtn.disabled = true;
     submitBtn.textContent = 'Criando...';
@@ -248,6 +327,7 @@ async function createLicense(e) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                user_id: parseInt(userId),
                 product_name: productName,
                 license_type: licenseType,
                 max_activations: parseInt(maxActivations)
@@ -260,8 +340,8 @@ async function createLicense(e) {
             closeModal();
             loadLicenses();
             
-            // Show success notification
-            showNotification('Licença criada com sucesso!', 'success');
+            const userName = getUserNameById(userId);
+            showNotification(`Licença criada com sucesso para ${userName}!`, 'success');
         } else {
             showNotification(data.error || 'Erro ao criar licença', 'error');
         }
@@ -313,10 +393,26 @@ async function viewLicenseDetails(licenseId) {
         if (response.ok && data.success) {
             const license = data.license;
             const activations = license.activations || [];
+            const ownerName = getUserNameById(license.user_id);
+            const ownerEmail = getUserEmailById(license.user_id);
             
             content.innerHTML = `
                 <div class="bg-slate-800 rounded-lg p-4 space-y-3">
                     <div class="grid grid-cols-2 gap-4">
+                        ${user.role === 'admin' ? `
+                        <div class="col-span-2">
+                            <p class="text-xs text-slate-400 mb-1">Cliente</p>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                                    <span class="text-white text-xs font-bold">${ownerName.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-white">${ownerName}</p>
+                                    <p class="text-xs text-slate-400">${ownerEmail}</p>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
                         <div>
                             <p class="text-xs text-slate-400 mb-1">Purchase Code</p>
                             <p class="font-mono text-sm font-semibold text-indigo-400">${license.purchase_code}</p>
