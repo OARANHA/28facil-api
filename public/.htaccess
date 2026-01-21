@@ -5,22 +5,25 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # Permitir acesso direto a arquivos estáticos no /portal/ e /swagger/
-    RewriteCond %{REQUEST_URI} ^/(portal|swagger)/ [NC]
+    # Redirecionar /portal para /portal/ (com barra final)
+    RewriteCond %{REQUEST_URI} ^/portal$
+    RewriteRule ^(.*)$ $1/ [R=301,L]
+    
+    # Permitir acesso direto a arquivos e diretórios existentes
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
     
-    # Redirecionar tudo para index.php (exceto arquivos/diretórios existentes)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    # Redirecionar todo o resto para index.php (apenas rotas da API)
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
+# Habilitar DirectoryIndex para subdiretórios
+DirectoryIndex index.html index.php
+
 # Segurança
-<FilesMatch "\.(env|git|md)$">
-    Order allow,deny
-    Deny from all
+<FilesMatch "\.(env|git|md|sql)$">
+    Require all denied
 </FilesMatch>
 
 # CORS Headers
@@ -29,6 +32,3 @@
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, X-API-Key, Authorization"
 </IfModule>
-
-# Habilitar DirectoryIndex para index.html em subdiretórios
-DirectoryIndex index.html index.php
