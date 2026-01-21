@@ -12,7 +12,7 @@ class LicenseController
     }
     
     /**
-     * GET /api/licenses
+     * GET /licenses
      * Listar licenças do usuário
      */
     public function list($userId, $isAdmin = false)
@@ -33,19 +33,13 @@ class LicenseController
                 SELECT l.*,
                        (SELECT COUNT(*) FROM license_activations WHERE license_id = l.id AND status = 'active') as active_activations
                 FROM licenses l
-                WHERE user_id = ?
+                WHERE user_id = :user_id
                 ORDER BY l.created_at DESC
             ");
-            $stmt->bind_param('i', $userId);
-            $stmt->execute();
+            $stmt->execute(['user_id' => $userId]);
         }
         
-        $result = $stmt->get_result();
-        $licenses = [];
-        
-        while ($row = $result->fetch_assoc()) {
-            $licenses[] = $row;
-        }
+        $licenses = $stmt->fetchAll();
         
         return [
             'success' => true,
@@ -54,17 +48,27 @@ class LicenseController
     }
     
     /**
-     * POST /api/licenses
+     * POST /licenses
      * Criar nova licença
      */
     public function create($userId, $isAdmin = false)
     {
+        if (!$isAdmin) {
+            http_response_code(403);
+            return ['error' => 'Acesso negado. Apenas administradores.'];
+        }
+        
         $input = json_decode(file_get_contents('php://input'), true);
         
-        $targetUserId = $isAdmin && isset($input['user_id']) ? $input['user_id'] : $userId;
+        $targetUserId = $input['user_id'] ?? null;
         $productName = $input['product_name'] ?? 'AiVoPro';
         $licenseType = $input['license_type'] ?? 'lifetime';
         $maxActivations = $input['max_activations'] ?? 1;
+        
+        if (!$targetUserId) {
+            http_response_code(400);
+            return ['error' => 'user_id é obrigatório'];
+        }
         
         // Gerar purchase code único
         $purchaseCode = $this->generatePurchaseCode();
@@ -74,24 +78,27 @@ class LicenseController
             INSERT INTO licenses (
                 uuid, user_id, purchase_code, product_name, 
                 license_type, max_activations
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (:uuid, :user_id, :purchase_code, :product_name, :license_type, :max_activations)
+            RETURNING id, uuid, purchase_code, product_name, license_type, max_activations
         ");
-        $stmt->bind_param('sisssi', $uuid, $targetUserId, $purchaseCode, $productName, $licenseType, $maxActivations);
         
-        if ($stmt->execute()) {
-            $licenseId = $stmt->insert_id;
-            
+        $stmt->execute([
+            'uuid' => $uuid,
+            'user_id' => $targetUserId,
+            'purchase_code' => $purchaseCode,
+            'product_name' => $productName,
+            'license_type' => $licenseType,
+            'max_activations' => $maxActivations
+        ]);
+        
+        $license = $stmt->fetch();
+        
+        if ($license) {
+            http_response_code(201);
             return [
                 'success' => true,
                 'message' => 'Licença criada com sucesso',
-                'license' => [
-                    'id' => $licenseId,
-                    'uuid' => $uuid,
-                    'purchase_code' => $purchaseCode,
-                    'product_name' => $productName,
-                    'license_type' => $licenseType,
-                    'max_activations' => $maxActivations
-                ]
+                'license' => $license
             ];
         }
         
@@ -100,7 +107,7 @@ class LicenseController
     }
     
     /**
-     * GET /api/licenses/{id}
+     * GET /licenses/{id}
      * Detalhes da licença
      */
     public function get($licenseId, $userId, $isAdmin = false)
@@ -109,45 +116,33 @@ class LicenseController
             SELECT l.*, u.name as user_name, u.email as user_email
             FROM licenses l
             JOIN users u ON l.user_id = u.id
-            WHERE l.id = ?
+            WHERE l.id = :license_id
         ";
         
+        $params = ['license_id' => $licenseId];
+        
         if (!$isAdmin) {
-            $query .= " AND l.user_id = ?";
+            $query .= " AND l.user_id = :user_id";
+            $params['user_id'] = $userId;
         }
         
         $stmt = $this->db->prepare($query);
+        $stmt->execute($params);
+        $license = $stmt->fetch();
         
-        if ($isAdmin) {
-            $stmt->bind_param('i', $licenseId);
-        } else {
-            $stmt->bind_param('ii', $licenseId, $userId);
-        }
-        
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($row = $result->fetch_assoc()) {
+        if ($license) {
             // Buscar ativações
             $activationsStmt = $this->db->prepare("
                 SELECT * FROM license_activations 
-                WHERE license_id = ?
+                WHERE license_id = :license_id
                 ORDER BY activated_at DESC
             ");
-            $activationsStmt->bind_param('i', $licenseId);
-            $activationsStmt->execute();
-            $activationsResult = $activationsStmt->get_result();
-            
-            $activations = [];
-            while ($activation = $activationsResult->fetch_assoc()) {
-                $activations[] = $activation;
-            }
-            
-            $row['activations'] = $activations;
+            $activationsStmt->execute(['license_id' => $licenseId]);
+            $license['activations'] = $activationsStmt->fetchAll();
             
             return [
                 'success' => true,
-                'license' => $row
+                'license' => $license
             ];
         }
         
@@ -156,7 +151,7 @@ class LicenseController
     }
     
     /**
-     * POST /api/license/validate
+     * POST /license/validate
      * Validar purchase code (usado pela aplicação)
      */
     public function validate()
@@ -173,13 +168,12 @@ class LicenseController
             SELECT id, uuid, product_name, license_type, status, max_activations, expires_at,
                    (SELECT COUNT(*) FROM license_activations WHERE license_id = id AND status = 'active') as active_activations
             FROM licenses
-            WHERE purchase_code = ?
+            WHERE purchase_code = :purchase_code
         ");
-        $stmt->bind_param('s', $purchaseCode);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt->execute(['purchase_code' => $purchaseCode]);
+        $row = $stmt->fetch();
         
-        if ($row = $result->fetch_assoc()) {
+        if ($row) {
             $valid = $row['status'] === 'active' && 
                      ($row['expires_at'] === null || strtotime($row['expires_at']) > time());
             
@@ -207,7 +201,7 @@ class LicenseController
     }
     
     /**
-     * POST /api/license/activate
+     * POST /license/activate
      * Ativar licença em domínio
      */
     public function activate()
@@ -229,13 +223,12 @@ class LicenseController
             SELECT id, max_activations,
                    (SELECT COUNT(*) FROM license_activations WHERE license_id = id AND status = 'active') as active_activations
             FROM licenses
-            WHERE purchase_code = ? AND status = 'active'
+            WHERE purchase_code = :purchase_code AND status = 'active'
         ");
-        $stmt->bind_param('s', $purchaseCode);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt->execute(['purchase_code' => $purchaseCode]);
+        $license = $stmt->fetch();
         
-        if (!($license = $result->fetch_assoc())) {
+        if (!$license) {
             http_response_code(404);
             return ['error' => 'Licença não encontrada ou inativa'];
         }
@@ -251,22 +244,29 @@ class LicenseController
         $licenseKey = $this->generateLicenseKey();
         $serverIp = $_SERVER['REMOTE_ADDR'] ?? null;
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
-        
         $metadata = json_encode($input['metadata'] ?? []);
         
         $activateStmt = $this->db->prepare("
             INSERT INTO license_activations (
                 uuid, license_id, license_key, domain, installation_hash, 
                 installation_name, server_ip, user_agent, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (:uuid, :license_id, :license_key, :domain, :installation_hash, 
+                      :installation_name, :server_ip, :user_agent, :metadata)
         ");
-        $activateStmt->bind_param(
-            'sisssssss',
-            $uuid, $license['id'], $licenseKey, $domain, $installationHash,
-            $installationName, $serverIp, $userAgent, $metadata
-        );
         
-        if ($activateStmt->execute()) {
+        $result = $activateStmt->execute([
+            'uuid' => $uuid,
+            'license_id' => $license['id'],
+            'license_key' => $licenseKey,
+            'domain' => $domain,
+            'installation_hash' => $installationHash,
+            'installation_name' => $installationName,
+            'server_ip' => $serverIp,
+            'user_agent' => $userAgent,
+            'metadata' => $metadata
+        ]);
+        
+        if ($result) {
             return [
                 'success' => true,
                 'activated' => true,
@@ -280,7 +280,7 @@ class LicenseController
     }
     
     /**
-     * GET /api/license/check
+     * GET /license/check
      * Verificar status da licença (health check)
      */
     public function check()
@@ -296,21 +296,19 @@ class LicenseController
             SELECT la.*, l.status as license_status, l.expires_at
             FROM license_activations la
             JOIN licenses l ON la.license_id = l.id
-            WHERE la.license_key = ? AND la.status = 'active'
+            WHERE la.license_key = :license_key AND la.status = 'active'
         ");
-        $stmt->bind_param('s', $licenseKey);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt->execute(['license_key' => $licenseKey]);
+        $row = $stmt->fetch();
         
-        if ($row = $result->fetch_assoc()) {
+        if ($row) {
             // Atualizar last_check
             $updateStmt = $this->db->prepare("
                 UPDATE license_activations 
                 SET last_check_at = NOW(), check_count = check_count + 1
-                WHERE id = ?
+                WHERE id = :id
             ");
-            $updateStmt->bind_param('i', $row['id']);
-            $updateStmt->execute();
+            $updateStmt->execute(['id' => $row['id']]);
             
             $active = $row['license_status'] === 'active' && 
                       ($row['expires_at'] === null || strtotime($row['expires_at']) > time());
