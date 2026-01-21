@@ -2,6 +2,7 @@
  * Clientes Management - 28Facil Portal
  * Versão com UIComponents integrado
  * Issue #3 - Melhorias de UX/UI
+ * Issue #2 - Autenticação via cookie httpOnly
  */
 
 const API_BASE = window.location.origin;
@@ -9,36 +10,73 @@ const API_BASE = window.location.origin;
 let currentPassword = '';
 let allClients = []; // Cache de todos os clientes
 let filteredClients = []; // Clientes filtrados pela busca
+let user = {}; // Usuário autenticado
 
-// Verificar autenticação
-function checkAuth() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/portal/';
-        return null;
+// Verificar autenticação via cookie (httpOnly)
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/me', {
+            credentials: 'include' // Importante: enviar cookies
+        });
+        
+        if (!response.ok) {
+            // Não autenticado
+            window.location.href = '/portal/index.html';
+            return false;
+        }
+        
+        const data = await response.json();
+        if (data.success && data.user) {
+            user = data.user;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            // Verificar se é admin
+            if (user.role !== 'admin') {
+                UIComponents.toast.error('❌ Acesso negado! Apenas administradores.');
+                setTimeout(() => {
+                    window.location.href = '/portal/dashboard.html';
+                }, 1500);
+                return false;
+            }
+            
+            return true;
+        } else {
+            window.location.href = '/portal/index.html';
+            return false;
+        }
+    } catch (error) {
+        console.error('Auth error:', error);
+        window.location.href = '/portal/index.html';
+        return false;
     }
-    return token;
 }
 
 // Logout
-function logout() {
-    localStorage.removeItem('token');
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    
     localStorage.removeItem('user');
-    window.location.href = '/portal/';
+    localStorage.removeItem('theme');
+    window.location.href = '/portal/index.html';
 }
 
 // Carregar clientes
 async function loadClients() {
-    const token = checkAuth();
-    if (!token) return;
-    
     // Mostrar loading skeleton
     UIComponents.loading.show('clients-container', 'table', 5);
     
     try {
         const response = await fetch(`${API_BASE}/api/users`, {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             }
         });
         
@@ -58,6 +96,10 @@ async function loadClients() {
             
             UIComponents.toast.success('✅ Clientes carregados!');
         } else {
+            if (response.status === 401) {
+                logout();
+                return;
+            }
             UIComponents.toast.error(data.error || '❌ Erro ao carregar clientes');
             renderEmptyState();
         }
@@ -211,9 +253,6 @@ function closeModal() {
 async function createClient(event) {
     event.preventDefault();
     
-    const token = checkAuth();
-    if (!token) return;
-    
     const name = document.getElementById('new-name').value.trim();
     const email = document.getElementById('new-email').value.trim();
     const phone = document.getElementById('new-phone').value.trim();
@@ -226,9 +265,9 @@ async function createClient(event) {
     try {
         const response = await fetch(`${API_BASE}/api/users`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 name,
@@ -254,6 +293,10 @@ async function createClient(event) {
             
             UIComponents.toast.success('✅ Cliente criado com sucesso!');
         } else {
+            if (response.status === 401) {
+                logout();
+                return;
+            }
             UIComponents.toast.error(data.error || '❌ Erro ao criar cliente');
         }
     } catch (error) {
@@ -289,9 +332,6 @@ function showPasswordModal(password, clientName) {
 
 // Resetar senha
 async function resetPassword(userId) {
-    const token = checkAuth();
-    if (!token) return;
-    
     // Confirmar com modal
     UIComponents.modal.show({
         title: '⚠ Resetar Senha',
@@ -302,9 +342,9 @@ async function resetPassword(userId) {
             try {
                 const response = await fetch(`${API_BASE}/api/users/${userId}/reset-password`, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ generate: true })
                 });
@@ -317,6 +357,10 @@ async function resetPassword(userId) {
                     showPasswordModal(data.new_password, client ? client.name : 'Cliente');
                     UIComponents.toast.success('✅ Senha resetada com sucesso!');
                 } else {
+                    if (response.status === 401) {
+                        logout();
+                        return;
+                    }
                     UIComponents.toast.error(data.error || '❌ Erro ao resetar senha');
                 }
             } catch (error) {
@@ -343,15 +387,10 @@ function confirmDeleteClient(userId, clientName) {
 
 // Deletar (desativar) cliente
 async function deleteClient(userId) {
-    const token = checkAuth();
-    if (!token) return;
-    
     try {
         const response = await fetch(`${API_BASE}/api/users/${userId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include'
         });
         
         const data = await response.json();
@@ -360,6 +399,10 @@ async function deleteClient(userId) {
             await loadClients();
             UIComponents.toast.success('✅ Cliente desativado com sucesso!');
         } else {
+            if (response.status === 401) {
+                logout();
+                return;
+            }
             UIComponents.toast.error(data.error || '❌ Erro ao desativar cliente');
         }
     } catch (error) {
@@ -369,6 +412,9 @@ async function deleteClient(userId) {
 }
 
 // Inicializar ao carregar página
-window.addEventListener('DOMContentLoaded', () => {
-    loadClients();
+window.addEventListener('DOMContentLoaded', async () => {
+    const isAuth = await checkAuth();
+    if (isAuth) {
+        loadClients();
+    }
 });
