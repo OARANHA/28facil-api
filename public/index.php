@@ -45,7 +45,6 @@ use TwentyEightFacil\Controllers\LicenseController;
 
 // Helper para pegar Authorization header (compatibilidade HTTP/2)
 function getAuthorizationHeader() {
-    // Tentar várias formas de obter o header
     $headers = null;
     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $headers = trim($_SERVER['HTTP_AUTHORIZATION']);
@@ -95,21 +94,18 @@ try {
     // Rotas Públicas de Licenciamento
     // ===========================
     
-    // Validar purchase code (usado pela aplicação)
     if ($path === '/license/validate' && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->validate(), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Ativar licença (usado pela aplicação)
     if ($path === '/license/activate' && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->activate(), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Check licença (health check da aplicação)
     if ($path === '/license/check' && $method === 'GET') {
         $controller = new LicenseController($db);
         echo json_encode($controller->check(), JSON_PRETTY_PRINT);
@@ -136,11 +132,8 @@ try {
     // Rotas Protegidas (requerem autenticação)
     // ===========================
     
-    // Obter token do header (usando função helper)
     $authHeader = getAuthorizationHeader();
     $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
-    
-    // Validar token
     $userId = AuthController::validateToken($token);
     
     if (!$userId) {
@@ -149,12 +142,10 @@ try {
         exit;
     }
     
-    // Buscar dados do usuário
-    $stmt = $db->prepare("SELECT id, role FROM users WHERE id = ? AND status = 'active'");
-    $stmt->bind_param('i', $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $currentUser = $result->fetch_assoc();
+    // Buscar dados do usuário usando PDO
+    $stmt = $db->prepare("SELECT id, role FROM users WHERE id = :id AND status = 'active'");
+    $stmt->execute(['id' => $userId]);
+    $currentUser = $stmt->fetch();
     
     if (!$currentUser) {
         http_response_code(401);
@@ -164,14 +155,12 @@ try {
     
     $isAdmin = $currentUser['role'] === 'admin';
     
-    // Dados do usuário logado
     if ($path === '/auth/me' && $method === 'GET') {
         $controller = new AuthController($db);
         echo json_encode($controller->me($userId), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Listar usuários (apenas admin)
     if ($path === '/users' && $method === 'GET') {
         if (!$isAdmin) {
             http_response_code(403);
@@ -186,12 +175,7 @@ try {
             ORDER BY name ASC
         ");
         $stmt->execute();
-        $result = $stmt->get_result();
-        
-        $users = [];
-        while ($row = $result->fetch_assoc()) {
-            $users[] = $row;
-        }
+        $users = $stmt->fetchAll();
         
         echo json_encode([
             'success' => true,
@@ -201,21 +185,18 @@ try {
         exit;
     }
     
-    // Listar licenças
     if ($path === '/licenses' && $method === 'GET') {
         $controller = new LicenseController($db);
         echo json_encode($controller->list($userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Criar licença (admin ou qualquer usuário para si mesmo)
     if ($path === '/licenses' && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->create($userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Detalhes de uma licença
     if (preg_match('/^\/licenses\/(\d+)$/', $path, $matches) && $method === 'GET') {
         $licenseId = (int)$matches[1];
         $controller = new LicenseController($db);
@@ -223,23 +204,19 @@ try {
         exit;
     }
     
-    // ===========================
-    // Rotas antigas (API Keys)
-    // ===========================
-    
     if ($path === '/auth/validate' && $method === 'GET') {
         validateApiKey();
         exit;
     }
     
-    // Rota não encontrada
     notFound();
     
 } catch (Exception $e) {
+    error_log('API Error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'error' => 'Erro interno do servidor',
-        'message' => $e->getMessage()
+        'message' => getenv('APP_DEBUG') === 'true' ? $e->getMessage() : 'Internal server error'
     ], JSON_PRETTY_PRINT);
 }
 
@@ -264,10 +241,12 @@ function healthCheck() {
     ];
     
     try {
-        if ($db && $db->ping()) {
+        if ($db) {
+            $db->query('SELECT 1');
             $response['database'] = [
                 'status' => 'connected',
-                'host' => getenv('DB_HOST') ?: 'mysql',
+                'type' => getenv('DB_CONNECTION') ?: 'pgsql',
+                'host' => getenv('DB_HOST') ?: 'postgres',
                 'database' => getenv('DB_DATABASE') ?: '28facil_api'
             ];
         }
@@ -322,28 +301,26 @@ function validateApiKey() {
             id, user_id, name, key_prefix, 
             permissions, rate_limit, usage_count
         FROM api_keys 
-        WHERE key_hash = ? 
-        AND is_active = 1
+        WHERE key_hash = :key_hash 
+        AND is_active = true
         AND (expires_at IS NULL OR expires_at > NOW())
     ");
     
-    $stmt->bind_param('s', $keyHash);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->execute(['key_hash' => $keyHash]);
+    $row = $stmt->fetch();
     
-    if ($row = $result->fetch_assoc()) {
+    if ($row) {
         $updateStmt = $db->prepare("
             UPDATE api_keys 
             SET 
                 last_used_at = NOW(),
                 usage_count = usage_count + 1,
-                last_ip = ?
-            WHERE id = ?
+                last_ip = :ip
+            WHERE id = :id
         ");
         
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        $updateStmt->bind_param('si', $ip, $row['id']);
-        $updateStmt->execute();
+        $updateStmt->execute(['ip' => $ip, 'id' => $row['id']]);
         
         echo json_encode([
             'valid' => true,
@@ -362,8 +339,6 @@ function validateApiKey() {
             'error' => 'Invalid or expired API key'
         ]);
     }
-    
-    $stmt->close();
 }
 
 function notFound() {
