@@ -66,6 +66,9 @@ class AuthController
         $userId = $result['id'];
         $token = $this->generateToken($userId);
         
+        // Retornar com cookie httpOnly (SEGURANÇA)
+        $this->setSecureCookie($token);
+        
         return [
             'success' => true,
             'message' => 'Usuário criado com sucesso',
@@ -74,8 +77,8 @@ class AuthController
                 'name' => $name,
                 'email' => $email,
                 'role' => 'customer'
-            ],
-            'token' => $token
+            ]
+            // Token não é mais retornado no JSON (está no cookie)
         ];
     }
     
@@ -118,6 +121,9 @@ class AuthController
                 
                 $token = $this->generateToken($user['id']);
                 
+                // Retornar com cookie httpOnly (SEGURANÇA)
+                $this->setSecureCookie($token);
+                
                 return [
                     'success' => true,
                     'message' => 'Login realizado com sucesso',
@@ -126,14 +132,37 @@ class AuthController
                         'name' => $user['name'],
                         'email' => $user['email'],
                         'role' => $user['role']
-                    ],
-                    'token' => $token
+                    ]
+                    // Token não é mais retornado no JSON (está no cookie)
                 ];
             }
         }
         
         http_response_code(401);
         return ['error' => 'Email ou senha incorretos'];
+    }
+    
+    /**
+     * POST /api/auth/logout
+     * Logout do usuário (limpar cookie)
+     */
+    public function logout()
+    {
+        // Limpar cookie setando valor vazio e expiração no passado
+        setcookie(
+            '28facil_token',
+            '',
+            time() - 3600,
+            '/',
+            '',
+            isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+            true
+        );
+        
+        return [
+            'success' => true,
+            'message' => 'Logout realizado com sucesso'
+        ];
     }
     
     /**
@@ -163,6 +192,33 @@ class AuthController
     }
     
     /**
+     * Definir cookie httpOnly seguro com JWT
+     */
+    private function setSecureCookie($token)
+    {
+        $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+        
+        setcookie(
+            '28facil_token',           // Nome do cookie
+            $token,                    // Valor (JWT)
+            time() + (86400 * 7),      // Expira em 7 dias
+            '/',                       // Path
+            '',                        // Domain (vazio = current domain)
+            $isSecure,                 // Secure (apenas HTTPS em produção)
+            true,                      // HttpOnly (não acessível via JS)
+            'Strict'                   // SameSite (proteção CSRF)
+        );
+    }
+    
+    /**
+     * Obter token JWT do cookie
+     */
+    public static function getTokenFromCookie()
+    {
+        return $_COOKIE['28facil_token'] ?? null;
+    }
+    
+    /**
      * Base64 URL-safe encode (sem padding)
      */
     private static function base64UrlEncode($data)
@@ -186,7 +242,7 @@ class AuthController
         $header = self::base64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $payload = self::base64UrlEncode(json_encode([
             'user_id' => $userId,
-            'exp' => time() + (86400 * 30) // 30 dias
+            'exp' => time() + (86400 * 7) // 7 dias (igual ao cookie)
         ]));
         $secret = getenv('JWT_SECRET') ?: '28facil_secret_change_in_production';
         $signature = self::base64UrlEncode(hash_hmac('sha256', "$header.$payload", $secret, true));

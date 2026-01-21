@@ -4,51 +4,41 @@
  * 28Facil API - Servidor Principal
  * 
  * Sistema completo de licenciamento com portal web
+ * Versão 2.1 - Segurança Aprimorada
  */
 
 // ===========================================
-// ROTAS PÚBLICAS - VERIFICAR ANTES DE TUDO
+// CONFIGURAÇÃO DE SESSÕES SEGURAS
 // ===========================================
 
-$requestUri = $_SERVER['REQUEST_URI'] ?? '';
-$path = parse_url($requestUri, PHP_URL_PATH);
-$path = preg_replace('/^\/api/', '', $path);
-
-// API Spec - DEVE SER PÚBLICO para Swagger
-if ($path === '/api.json') {
-    header('Content-Type: application/json');
-    $specPath = __DIR__ . '/../api.json';
-    
-    if (file_exists($specPath)) {
-        echo file_get_contents($specPath);
-    } else {
-        http_response_code(404);
-        echo json_encode(['error' => 'API specification not found']);
-    }
-    exit;
-}
+require_once __DIR__ . '/../config/session.php';
 
 // ===========================================
-// CONTINUAÇÃO NORMAL DO CÓDIGO
+// AUTOLOAD E DEPENDÊNCIAS
 // ===========================================
-
-header('Content-Type: application/json');
-header('X-Powered-By: 28Facil/2.0');
-
-// CORS
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-API-Key, Authorization, X-License-Key');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
 
 // Autoload classes
 spl_autoload_register(function ($class) {
     $prefix = 'TwentyEightFacil\\';
     $baseDir = __DIR__ . '/../src/';
+    
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+    
+    $relativeClass = substr($class, $len);
+    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+    
+    if (file_exists($file)) {
+        require $file;
+    }
+});
+
+// Autoload middleware
+spl_autoload_register(function ($class) {
+    $prefix = 'Middleware\\';
+    $baseDir = __DIR__ . '/../middleware/';
     
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) {
@@ -69,8 +59,105 @@ require_once __DIR__ . '/../config/database.php';
 use TwentyEightFacil\Controllers\AuthController;
 use TwentyEightFacil\Controllers\LicenseController;
 use TwentyEightFacil\Controllers\UserController;
+use Middleware\SecurityHeaders;
+use Middleware\CsrfProtection;
 
-// Helper para pegar Authorization header
+// ===========================================
+// ROTAS PÚBLICAS - VERIFICAR ANTES DE TUDO
+// ===========================================
+
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+$path = parse_url($requestUri, PHP_URL_PATH);
+$path = preg_replace('/^\/api/', '', $path);
+$method = $_SERVER['REQUEST_METHOD'];
+
+// API Spec - DEVE SER PÚBLICO para Swagger
+if ($path === '/api.json') {
+    header('Content-Type: application/json');
+    $specPath = __DIR__ . '/../api.json';
+    
+    if (file_exists($specPath)) {
+        echo file_get_contents($specPath);
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'API specification not found']);
+    }
+    exit;
+}
+
+// ===========================================
+// APLICAR MIDDLEWARES DE SEGURANÇA
+// ===========================================
+
+// 1. Security Headers Middleware
+$securityHeaders = new SecurityHeaders();
+$securityHeaders->handle(null, function() { return null; });
+
+// 2. CSRF Protection (apenas para rotas que modificam dados)
+if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+    // Rotas que NÃO precisam de CSRF (APIs públicas)
+    $csrfExempt = [
+        '/license/validate',
+        '/license/activate',
+        '/license/check'
+    ];
+    
+    if (!in_array($path, $csrfExempt)) {
+        $csrfProtection = new CsrfProtection();
+        // Simular request object
+        $mockRequest = new class {
+            public function method() {
+                return $_SERVER['REQUEST_METHOD'];
+            }
+            public function header($name) {
+                $name = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+                return $_SERVER[$name] ?? null;
+            }
+            public function input($name) {
+                $input = json_decode(file_get_contents('php://input'), true);
+                return $input[$name] ?? null;
+            }
+            public function session() {
+                return new class {
+                    public function token() {
+                        return $_SESSION['_token'] ?? null;
+                    }
+                };
+            }
+            public function fullUrlIs($pattern) {
+                return false;
+            }
+            public function is($pattern) {
+                return false;
+            }
+        };
+        
+        $csrfProtection->handle($mockRequest, function() { return null; });
+    }
+}
+
+// ===========================================
+// HEADERS E CORS
+// ===========================================
+
+header('Content-Type: application/json');
+header('X-Powered-By: 28Facil/2.1');
+
+// CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-API-Key, Authorization, X-License-Key, X-CSRF-TOKEN');
+header('Access-Control-Allow-Credentials: true');
+
+if ($method === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// ===========================================
+// HELPER FUNCTIONS
+// ===========================================
+
 function getAuthorizationHeader() {
     $headers = null;
     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
@@ -95,14 +182,26 @@ function getAuthorizationHeader() {
     return $headers;
 }
 
-// Parse da URL (já feito acima)
-$method = $_SERVER['REQUEST_METHOD'];
+// ===========================================
+// ROTEAMENTO
+// ===========================================
 
-// Roteamento
 try {
     // Health Check (público)
     if ($path === '/' || $path === '/health') {
         healthCheck();
+        exit;
+    }
+    
+    // CSRF Token endpoint (público)
+    if ($path === '/csrf-token' && $method === 'GET') {
+        if (!isset($_SESSION['_token'])) {
+            $_SESSION['_token'] = bin2hex(random_bytes(32));
+        }
+        echo json_encode([
+            'success' => true,
+            'csrf_token' => $_SESSION['_token']
+        ]);
         exit;
     }
     
@@ -144,12 +243,24 @@ try {
         exit;
     }
     
+    if ($path === '/auth/logout' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->logout(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
     // ===========================
     // Rotas Protegidas (requerem autenticação)
     // ===========================
     
-    $authHeader = getAuthorizationHeader();
-    $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
+    // Tentar obter token do cookie primeiro, depois do header Authorization
+    $token = AuthController::getTokenFromCookie();
+    
+    if (!$token) {
+        $authHeader = getAuthorizationHeader();
+        $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
+    }
+    
     $userId = AuthController::validateToken($token);
     
     if (!$userId) {
@@ -184,40 +295,34 @@ try {
     
     $userController = new UserController($db);
     
-    // Listar usuários
     if ($path === '/users' && $method === 'GET') {
         echo json_encode($userController->list($isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Criar usuário
     if ($path === '/users' && $method === 'POST') {
         echo json_encode($userController->create($isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Obter usuário específico
     if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'GET') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->get($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Atualizar usuário
     if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'PUT') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->update($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Desativar usuário
     if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'DELETE') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->delete($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    // Resetar senha do usuário
     if (preg_match('/^\/users\/(\d+)\/reset-password$/', $path, $matches) && $method === 'POST') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->resetPassword($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
@@ -274,14 +379,21 @@ function healthCheck() {
     $response = [
         'status' => 'success',
         'message' => '28Facil API Server is running!',
-        'version' => '2.0.2',
+        'version' => '2.1.0',
         'timestamp' => date('c'),
         'php_version' => phpversion(),
         'features' => [
             'licensing' => 'enabled',
             'portal' => 'enabled',
             'users' => 'enabled',
-            'api_keys' => 'enabled'
+            'api_keys' => 'enabled',
+            'security' => 'enhanced'
+        ],
+        'security' => [
+            'csrf_protection' => 'enabled',
+            'httponly_cookies' => 'enabled',
+            'security_headers' => 'enabled',
+            'rate_limiting' => 'client-side'
         ]
     ];
     
