@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Apenas a API - conecta no banco existente
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 28facil-api-standalone
+    restart: unless-stopped
+    
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: 28facil-postgres  # Container do banco que já existe
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-28facil_api}
+      DB_USERNAME: ${DB_USERNAME:-28facil}
+      DB_PASSWORD: ${DB_PASSWORD:-senha_forte_123}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-true}  # Debug ligado para ver logs
+      TZ: America/Sao_Paulo
+    
+    ports:
+      - "${API_PORT:-8081}:80"  # Porta 8081 para não conflitar
+    
+    volumes:
+      - api_logs:/var/www/html/logs
+    
+    networks:
+      - 28facil-network  # Mesma rede do banco
+      - traefik-public
+    
+    labels:
+      # Habilitar Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      
+      # Roteador HTTP (redirecionar para HTTPS)
+      - "traefik.http.routers.28facil-api-test-http.rule=Host(`api.28facil.com.br`)"
+      - "traefik.http.routers.28facil-api-test-http.entrypoints=web"
+      - "traefik.http.routers.28facil-api-test-http.middlewares=redirect-to-https"
+      
+      # Roteador HTTPS
+      - "traefik.http.routers.28facil-api-test.rule=Host(`api.28facil.com.br`)"
+      - "traefik.http.routers.28facil-api-test.entrypoints=websecure"
+      - "traefik.http.routers.28facil-api-test.tls=true"
+      - "traefik.http.routers.28facil-api-test.tls.certresolver=letsencrypt"
+      
+      # Service (porta do container)
+      - "traefik.http.services.28facil-api-test.loadbalancer.server.port=80"
+      
+      # Middleware de redirecionamento HTTPS
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+volumes:
+  api_logs:
+    driver: local
+
+networks:
+  28facil-network:
+    external: true  # Usa a rede já existente
+  traefik-public:
+    external: true
