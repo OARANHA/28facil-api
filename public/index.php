@@ -6,8 +6,31 @@
  * Sistema completo de licenciamento com portal web
  */
 
-// LOG DEBUG
-error_log("[DEBUG] REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? 'N/A'));
+// ===========================================
+// ROTAS PÚBLICAS - VERIFICAR ANTES DE TUDO
+// ===========================================
+
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+$path = parse_url($requestUri, PHP_URL_PATH);
+$path = preg_replace('/^\/api/', '', $path);
+
+// API Spec - DEVE SER PÚBLICO para Swagger
+if ($path === '/api.json') {
+    header('Content-Type: application/json');
+    $specPath = __DIR__ . '/../api.json';
+    
+    if (file_exists($specPath)) {
+        echo file_get_contents($specPath);
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'API specification not found']);
+    }
+    exit;
+}
+
+// ===========================================
+// CONTINUAÇÃO NORMAL DO CÓDIGO
+// ===========================================
 
 header('Content-Type: application/json');
 header('X-Powered-By: 28Facil/2.0');
@@ -72,30 +95,14 @@ function getAuthorizationHeader() {
     return $headers;
 }
 
-// Parse da URL
-$requestUri = $_SERVER['REQUEST_URI'];
-$path = parse_url($requestUri, PHP_URL_PATH);
+// Parse da URL (já feito acima)
 $method = $_SERVER['REQUEST_METHOD'];
-
-// Remove /api prefix se existir
-$path = preg_replace('/^\/api/', '', $path);
-
-// LOG DEBUG
-error_log("[DEBUG] Parsed path: $path | Method: $method");
 
 // Roteamento
 try {
     // Health Check (público)
     if ($path === '/' || $path === '/health') {
-        error_log("[DEBUG] Rota: /health");
         healthCheck();
-        exit;
-    }
-    
-    // API Spec (público) - IMPORTANTE: deve ser antes de qualquer autenticação
-    if ($path === '/api.json') {
-        error_log("[DEBUG] Rota: /api.json - EXECUTANDO");
-        apiSpec();
         exit;
     }
     
@@ -141,14 +148,11 @@ try {
     // Rotas Protegidas (requerem autenticação)
     // ===========================
     
-    error_log("[DEBUG] Entrando no middleware de autenticação - Path: $path");
-    
     $authHeader = getAuthorizationHeader();
     $token = $authHeader ? str_replace('Bearer ', '', $authHeader) : '';
     $userId = AuthController::validateToken($token);
     
     if (!$userId) {
-        error_log("[DEBUG] Autenticação falhou - Token: " . ($token ? 'presente' : 'ausente'));
         http_response_code(401);
         echo json_encode(['error' => 'Não autenticado']);
         exit;
@@ -270,7 +274,7 @@ function healthCheck() {
     $response = [
         'status' => 'success',
         'message' => '28Facil API Server is running!',
-        'version' => '2.0.1',
+        'version' => '2.0.2',
         'timestamp' => date('c'),
         'php_version' => phpversion(),
         'features' => [
@@ -299,24 +303,6 @@ function healthCheck() {
     }
     
     echo json_encode($response, JSON_PRETTY_PRINT);
-}
-
-function apiSpec() {
-    error_log("[DEBUG] apiSpec() chamada");
-    
-    $specPath = __DIR__ . '/../api.json';
-    
-    error_log("[DEBUG] Procurando arquivo: $specPath");
-    error_log("[DEBUG] Arquivo existe: " . (file_exists($specPath) ? 'SIM' : 'NÃO'));
-    
-    if (file_exists($specPath)) {
-        $content = file_get_contents($specPath);
-        error_log("[DEBUG] Conteúdo carregado: " . strlen($content) . " bytes");
-        echo $content;
-    } else {
-        http_response_code(404);
-        echo json_encode(['error' => 'API specification not found', 'path' => $specPath]);
-    }
 }
 
 function validateApiKey() {
