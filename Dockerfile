@@ -47,13 +47,28 @@ RUN mkdir -p /var/www/html/public
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
     && sed -i 's|DocumentRoot /var/www/html/public|DocumentRoot /var/www/html/public|g' /etc/apache2/apache2.conf
 
-# Adicionar configuração de .htaccess e ServerName
+# Adicionar configuração de .htaccess, ServerName e PassEnv para variáveis de ambiente
 RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf \
     && echo '<Directory /var/www/html/public>' >> /etc/apache2/apache2.conf \
     && echo '    AllowOverride All' >> /etc/apache2/apache2.conf \
     && echo '    Require all granted' >> /etc/apache2/apache2.conf \
     && echo '    Options -Indexes +FollowSymLinks' >> /etc/apache2/apache2.conf \
-    && echo '</Directory>' >> /etc/apache2/apache2.conf
+    && echo '</Directory>' >> /etc/apache2/apache2.conf \
+    && echo '' >> /etc/apache2/apache2.conf \
+    && echo '# Passar variáveis de ambiente do Docker para PHP' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_CONNECTION' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_HOST' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_PORT' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_DATABASE' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_USERNAME' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv DB_PASSWORD' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv APP_ENV' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv APP_DEBUG' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv APP_URL' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv APP_TIMEZONE' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv JWT_SECRET' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv JWT_EXPIRATION' >> /etc/apache2/apache2.conf \
+    && echo 'PassEnv API_KEY_PREFIX' >> /etc/apache2/apache2.conf
 
 # Criar diretório de logs
 RUN mkdir -p /var/www/html/logs && chmod 777 /var/www/html/logs
