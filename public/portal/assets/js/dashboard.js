@@ -2,7 +2,7 @@
  * Dashboard - 28Facil Portal
  * Versão com UIComponents integrado
  * Issue #3 - Melhorias de UX/UI
- * Issue #2 - Autenticação via cookie httpOnly
+ * Issue #2 - Autenticação via cookie httpOnly + CSRF
  */
 
 // User data (sem token - agora é httpOnly cookie)
@@ -12,6 +12,25 @@ let user = JSON.parse(localStorage.getItem('user') || '{}');
 let usersCache = [];
 let allLicenses = [];
 let filteredLicenses = [];
+let csrfToken = null;
+
+// Carregar CSRF token
+async function loadCsrfToken() {
+    try {
+        const response = await fetch('/api/csrf-token', { credentials: 'include' });
+        const data = await response.json();
+        if (data.success && data.csrf_token) {
+            csrfToken = data.csrf_token;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar CSRF token:', error);
+    }
+}
+
+// Obter CSRF token atual
+function getCsrfToken() {
+    return csrfToken;
+}
 
 // Theme Management
 function initTheme() {
@@ -43,8 +62,9 @@ function updateThemeIcon(theme) {
 }
 
 // Initialize theme
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
+    await loadCsrfToken();
     checkAuth();
 });
 
@@ -463,7 +483,8 @@ async function createLicense(e) {
             method: 'POST',
             credentials: 'include',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken()
             },
             body: JSON.stringify({
                 user_id: parseInt(userId),
