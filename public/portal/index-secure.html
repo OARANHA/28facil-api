@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Portal de Licenças - 28Facil</title>
     <link rel="icon" type="image/png" href="/portal/assets/favicon.png">
     
@@ -182,7 +183,119 @@
     <!-- Load Security Module FIRST -->
     <script src="/portal/assets/js/security.js"></script>
     
-    <!-- Load Secure App Logic -->
-    <script src="/portal/assets/js/app-secure.js"></script>
+    <!-- Load App Logic -->
+    <script src="/portal/assets/js/app.js"></script>
+    
+    <!-- Secure Login/Register Handlers -->
+    <script>
+        async function handleSecureLogin(e) {
+            e.preventDefault();
+            
+            // Verificar rate limiting
+            const rateLimitCheck = Security.checkRateLimit();
+            if (rateLimitCheck.isLocked) {
+                Security.showSecureError('login-error', rateLimitCheck.message);
+                return;
+            }
+            
+            const email = Security.sanitizeInput(document.getElementById('login-email').value.trim());
+            const password = document.getElementById('login-password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // Hide previous errors
+            document.getElementById('login-error').classList.add('hidden');
+            
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Entrando...';
+            
+            try {
+                const response = await Security.secureFetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Reset rate limit após sucesso
+                    Security.resetRateLimit();
+                    
+                    // Token agora está em httpOnly cookie, não mais no localStorage
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    submitBtn.textContent = '✓ Login realizado!';
+                    submitBtn.classList.add('bg-green-600');
+                    
+                    Security.showToast('Login realizado com sucesso!', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/portal/dashboard.html';
+                    }, 500);
+                } else {
+                    // Registrar tentativa falha
+                    const result = Security.recordFailedAttempt();
+                    Security.showSecureError('login-error', result.message || data.error);
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Entrar';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                Security.showSecureError('login-error', 'Erro de conexão. Verifique sua internet.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Entrar';
+            }
+        }
+        
+        async function handleSecureRegister(e) {
+            e.preventDefault();
+            
+            const name = Security.sanitizeInput(document.getElementById('register-name').value.trim());
+            const email = Security.sanitizeInput(document.getElementById('register-email').value.trim());
+            const password = document.getElementById('register-password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // Hide previous messages
+            document.getElementById('register-error').classList.add('hidden');
+            
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Criando conta...';
+            
+            try {
+                const response = await Security.secureFetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    submitBtn.textContent = '✓ Conta criada!';
+                    submitBtn.classList.add('bg-green-600');
+                    
+                    Security.showToast('Conta criada com sucesso!', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/portal/dashboard.html';
+                    }, 1000);
+                } else {
+                    Security.showSecureError('register-error', data.error || 'Erro ao criar conta.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Criar Conta';
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                Security.showSecureError('register-error', 'Erro de conexão. Verifique sua internet.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Criar Conta';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -1,7 +1,14 @@
-// Clientes Management - 28Facil Portal
+/**
+ * Clientes Management - 28Facil Portal
+ * Versão com UIComponents integrado
+ * Issue #3 - Melhorias de UX/UI
+ */
+
 const API_BASE = window.location.origin;
 
 let currentPassword = '';
+let allClients = []; // Cache de todos os clientes
+let filteredClients = []; // Clientes filtrados pela busca
 
 // Verificar autenticação
 function checkAuth() {
@@ -25,8 +32,11 @@ async function loadClients() {
     const token = checkAuth();
     if (!token) return;
     
+    // Mostrar loading skeleton
+    UIComponents.loading.show('clients-container', 'table', 5);
+    
     try {
-        const response = await fetch(`${API_BASE}/users`, {
+        const response = await fetch(`${API_BASE}/api/users`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -35,34 +45,56 @@ async function loadClients() {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            renderClients(data.users);
+            allClients = data.users;
+            filteredClients = [...allClients];
+            
+            // Resetar paginação
+            UIComponents.pagination.reset();
+            
+            renderClients();
+            
+            // Renderizar busca
+            renderSearch();
+            
+            UIComponents.toast.success('✅ Clientes carregados!');
         } else {
-            showError(data.error || 'Erro ao carregar clientes');
+            UIComponents.toast.error(data.error || '❌ Erro ao carregar clientes');
+            renderEmptyState();
         }
     } catch (error) {
         console.error('Error loading clients:', error);
-        showError('Erro ao conectar com o servidor');
+        UIComponents.toast.error('❌ Erro ao conectar com o servidor');
+        renderEmptyState();
     }
 }
 
+// Renderizar campo de busca
+function renderSearch() {
+    UIComponents.search.render('search-container', 'Buscar por nome, email ou empresa...', (searchTerm) => {
+        // Filtrar clientes
+        filteredClients = UIComponents.search.filter(allClients, searchTerm, ['name', 'email', 'company']);
+        
+        // Resetar paginação ao buscar
+        UIComponents.pagination.reset();
+        
+        // Renderizar resultados
+        renderClients();
+    });
+}
+
 // Renderizar tabela de clientes
-function renderClients(clients) {
+function renderClients() {
     const container = document.getElementById('clients-container');
     
-    if (!clients || clients.length === 0) {
-        container.innerHTML = `
-            <div class="p-12 text-center">
-                <div class="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                </div>
-                <p class="text-slate-400 text-lg">Nenhum cliente cadastrado</p>
-                <p class="text-slate-500 text-sm mt-2">Clique em "Novo Cliente" para começar</p>
-            </div>
-        `;
+    if (!filteredClients || filteredClients.length === 0) {
+        renderEmptyState();
+        // Limpar paginação
+        document.getElementById('pagination-container').innerHTML = '';
         return;
     }
+    
+    // Paginar dados
+    const paginatedData = UIComponents.pagination.paginate(filteredClients);
     
     const tableHTML = `
         <table class="w-full">
@@ -77,12 +109,17 @@ function renderClients(clients) {
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-700">
-                ${clients.map(client => renderClientRow(client)).join('')}
+                ${paginatedData.map(client => renderClientRow(client)).join('')}
             </tbody>
         </table>
     `;
     
     container.innerHTML = tableHTML;
+    
+    // Renderizar paginação
+    UIComponents.pagination.render('pagination-container', filteredClients.length, () => {
+        renderClients();
+    });
 }
 
 function renderClientRow(client) {
@@ -92,7 +129,7 @@ function renderClientRow(client) {
     const createdDate = new Date(client.created_at).toLocaleDateString('pt-BR');
     
     return `
-        <tr class="hover:bg-slate-800 transition-colors">
+        <tr class="table-row-hover">
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -100,7 +137,7 @@ function renderClientRow(client) {
                     </div>
                     <div class="ml-4">
                         <div class="text-sm font-medium text-white">${escapeHtml(client.name)}</div>
-                        ${isAdmin ? '<span class="text-xs text-indigo-400 font-semibold">🔑 Admin</span>' : '<span class="text-xs text-slate-500">Cliente</span>'}
+                        ${isAdmin ? '<span class="badge badge-info">🔑 Admin</span>' : '<span class="text-xs text-slate-500">Cliente</span>'}
                     </div>
                 </div>
             </td>
@@ -112,7 +149,7 @@ function renderClientRow(client) {
                 <div class="text-sm text-slate-300">${client.company ? escapeHtml(client.company) : '<span class="text-slate-600">-</span>'}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-${statusColor}-900 text-${statusColor}-300">
+                <span class="badge badge-${client.status === 'active' ? 'success' : 'error'}">
                     ${statusText}
                 </span>
             </td>
@@ -121,16 +158,30 @@ function renderClientRow(client) {
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 ${!isAdmin ? `
-                    <button onclick="resetPassword(${client.id})" class="text-indigo-400 hover:text-indigo-300 mr-3" title="Resetar Senha">
+                    <button onclick="resetPassword(${client.id})" class="text-indigo-400 hover:text-indigo-300 mr-3 transition-colors" title="Resetar Senha">
                         🔑
                     </button>
-                    <button onclick="deleteClient(${client.id}, '${escapeHtml(client.name)}')" class="text-red-400 hover:text-red-300" title="Desativar">
+                    <button onclick="confirmDeleteClient(${client.id}, '${escapeHtml(client.name).replace(/'/g, "\\'")}'')" class="text-red-400 hover:text-red-300 transition-colors" title="Desativar">
                         ❌
                     </button>
                 ` : '<span class="text-slate-600">-</span>'}
             </td>
         </tr>
     `;
+}
+
+function renderEmptyState() {
+    const container = document.getElementById('clients-container');
+    
+    UIComponents.emptyState.render('clients-container', {
+        icon: '👥',
+        title: 'Nenhum cliente encontrado',
+        description: filteredClients.length === 0 && allClients.length > 0 
+            ? 'Tente uma busca diferente' 
+            : 'Comece cadastrando seu primeiro cliente',
+        buttonText: allClients.length === 0 ? '+ Novo Cliente' : null,
+        buttonAction: allClients.length === 0 ? 'showNewClientModal()' : null
+    });
 }
 
 function getInitials(name) {
@@ -168,8 +219,12 @@ async function createClient(event) {
     const phone = document.getElementById('new-phone').value.trim();
     const company = document.getElementById('new-company').value.trim();
     
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Criando...';
+    
     try {
-        const response = await fetch(`${API_BASE}/users`, {
+        const response = await fetch(`${API_BASE}/api/users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -189,72 +244,110 @@ async function createClient(event) {
         if (response.ok && data.success) {
             closeModal();
             
-            // Mostrar senha gerada
+            // Mostrar senha gerada com modal do UIComponents
             if (data.generated_password) {
-                currentPassword = data.generated_password;
-                document.getElementById('generated-password').textContent = data.generated_password;
-                document.getElementById('modal-password').classList.remove('hidden');
+                showPasswordModal(data.generated_password, name);
             }
             
             // Recarregar lista
             await loadClients();
             
-            showSuccess('Cliente criado com sucesso!');
+            UIComponents.toast.success('✅ Cliente criado com sucesso!');
         } else {
-            showError(data.error || 'Erro ao criar cliente');
+            UIComponents.toast.error(data.error || '❌ Erro ao criar cliente');
         }
     } catch (error) {
         console.error('Error creating client:', error);
-        showError('Erro ao conectar com o servidor');
+        UIComponents.toast.error('❌ Erro ao conectar com o servidor');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Criar Cliente';
     }
+}
+
+// Mostrar modal de senha gerada
+function showPasswordModal(password, clientName) {
+    currentPassword = password;
+    
+    UIComponents.modal.show({
+        title: '🔑 Senha Gerada',
+        body: `
+            <div class="text-center">
+                <p class="text-slate-300 mb-4">Senha gerada para <strong class="text-white">${escapeHtml(clientName)}</strong>:</p>
+                <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-4">
+                    <code class="text-2xl text-indigo-400 font-mono font-bold">${password}</code>
+                </div>
+                <p class="text-sm text-yellow-400 mb-4">⚠ Guarde esta senha! Ela não será mostrada novamente.</p>
+                ${UIComponents.clipboard.button(password, 'Copiar Senha')}
+            </div>
+        `,
+        confirmText: 'Fechar',
+        cancelText: '',
+        size: 'md'
+    });
 }
 
 // Resetar senha
 async function resetPassword(userId) {
-    if (!confirm('Deseja resetar a senha deste cliente? Uma nova senha será gerada.')) {
-        return;
-    }
-    
     const token = checkAuth();
     if (!token) return;
     
-    try {
-        const response = await fetch(`${API_BASE}/users/${userId}/reset-password`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ generate: true })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            currentPassword = data.new_password;
-            document.getElementById('generated-password').textContent = data.new_password;
-            document.getElementById('modal-password').classList.remove('hidden');
-            showSuccess('Senha resetada com sucesso!');
-        } else {
-            showError(data.error || 'Erro ao resetar senha');
+    // Confirmar com modal
+    UIComponents.modal.show({
+        title: '⚠ Resetar Senha',
+        body: '<p class="text-slate-300">Deseja resetar a senha deste cliente?<br>Uma nova senha será gerada.</p>',
+        confirmText: 'Sim, Resetar',
+        cancelText: 'Cancelar',
+        onConfirm: async () => {
+            try {
+                const response = await fetch(`${API_BASE}/api/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ generate: true })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Buscar nome do cliente
+                    const client = allClients.find(c => c.id === userId);
+                    showPasswordModal(data.new_password, client ? client.name : 'Cliente');
+                    UIComponents.toast.success('✅ Senha resetada com sucesso!');
+                } else {
+                    UIComponents.toast.error(data.error || '❌ Erro ao resetar senha');
+                }
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                UIComponents.toast.error('❌ Erro ao conectar com o servidor');
+            }
         }
-    } catch (error) {
-        console.error('Error resetting password:', error);
-        showError('Erro ao conectar com o servidor');
-    }
+    });
+}
+
+// Confirmar e deletar (desativar) cliente
+function confirmDeleteClient(userId, clientName) {
+    UIComponents.modal.show({
+        title: '⚠ Desativar Cliente',
+        body: `
+            <p class="text-slate-300 mb-2">Deseja desativar o cliente <strong class="text-white">${clientName}</strong>?</p>
+            <p class="text-sm text-red-400">O cliente não poderá mais acessar o sistema.</p>
+        `,
+        confirmText: 'Sim, Desativar',
+        cancelText: 'Cancelar',
+        onConfirm: () => deleteClient(userId)
+    });
 }
 
 // Deletar (desativar) cliente
-async function deleteClient(userId, clientName) {
-    if (!confirm(`Deseja desativar o cliente "${clientName}"?\n\nO cliente não poderá mais acessar o sistema.`)) {
-        return;
-    }
-    
+async function deleteClient(userId) {
     const token = checkAuth();
     if (!token) return;
     
     try {
-        const response = await fetch(`${API_BASE}/users/${userId}`, {
+        const response = await fetch(`${API_BASE}/api/users/${userId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -265,39 +358,14 @@ async function deleteClient(userId, clientName) {
         
         if (response.ok && data.success) {
             await loadClients();
-            showSuccess('Cliente desativado com sucesso!');
+            UIComponents.toast.success('✅ Cliente desativado com sucesso!');
         } else {
-            showError(data.error || 'Erro ao desativar cliente');
+            UIComponents.toast.error(data.error || '❌ Erro ao desativar cliente');
         }
     } catch (error) {
         console.error('Error deleting client:', error);
-        showError('Erro ao conectar com o servidor');
+        UIComponents.toast.error('❌ Erro ao conectar com o servidor');
     }
-}
-
-// Copiar senha
-function copyPassword() {
-    navigator.clipboard.writeText(currentPassword).then(() => {
-        showSuccess('Senha copiada!');
-    }).catch(err => {
-        showError('Erro ao copiar senha');
-    });
-}
-
-// Fechar modal de senha
-function closePasswordModal() {
-    document.getElementById('modal-password').classList.add('hidden');
-    currentPassword = '';
-}
-
-// Notificações
-function showSuccess(message) {
-    // Implementar toast notification se quiser
-    alert(message);
-}
-
-function showError(message) {
-    alert('Erro: ' + message);
 }
 
 // Inicializar ao carregar página

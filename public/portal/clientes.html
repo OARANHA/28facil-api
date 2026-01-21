@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clientes - 28Facil</title>
+    <title>Clientes - 28Facil Portal</title>
     <link rel="icon" type="image/png" href="/portal/assets/favicon.png">
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- UI Components CSS -->
+    <link rel="stylesheet" href="/portal/assets/css/ui-components.css">
+    <link rel="stylesheet" href="/portal/assets/css/animations.css">
+    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -23,42 +30,30 @@
         }
     </script>
     <style>
-        .glass-effect {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 116, 139, 0.3);
-        }
-        body {
+        .dark body {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-in {
-            animation: slideIn 0.5s ease-out;
         }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
     <!-- Header -->
-    <header class="glass-effect border-b border-slate-700">
-        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center">
+    <header class="bg-slate-900 border-b border-slate-700 sticky top-0 z-40">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    <img src="/portal/assets/logo.png" alt="28Facil" class="h-12 drop-shadow-lg">
-                    <div class="border-l border-slate-600 pl-4">
-                        <h1 class="text-xl font-bold text-white">Clientes</h1>
-                        <p class="text-xs text-slate-400">Gerenciamento de Clientes</p>
-                    </div>
+                    <img src="/portal/assets/logo.png" alt="28Facil" class="h-10">
+                    <nav class="hidden md:flex space-x-4">
+                        <a href="/portal/dashboard.html" class="text-slate-300 hover:text-white transition-colors">
+                            Dashboard
+                        </a>
+                        <a href="/portal/clientes.html" class="text-white font-semibold">
+                            Clientes
+                        </a>
+                    </nav>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/portal/dashboard.html" 
-                       class="px-4 py-2 glass-effect rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
-                        ← Voltar
-                    </a>
-                    <button onclick="logout()" 
-                            class="px-4 py-2 glass-effect rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
+                    <span class="text-slate-400 text-sm" id="user-name"></span>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all">
                         Sair
                     </button>
                 </div>
@@ -67,79 +62,76 @@
     </header>
     
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <!-- Actions -->
-        <div class="mb-6 flex justify-between items-center">
-            <h2 class="text-2xl font-bold text-white">Lista de Clientes</h2>
-            <button onclick="showNewClientModal()" 
-                    class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg">
+    <main class="container mx-auto px-6 py-8">
+        <!-- Page Header -->
+        <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">👥 Gerênciamento de Clientes</h1>
+                <p class="text-slate-400">Cadastre e gerencie seus clientes</p>
+            </div>
+            <button onclick="showNewClientModal()" class="btn-primary px-6 py-3 text-white rounded-lg font-semibold shadow-lg">
                 + Novo Cliente
             </button>
         </div>
         
+        <!-- Search Bar -->
+        <div id="search-container" class="mb-6"></div>
+        
         <!-- Clients Table -->
-        <div id="clients-container" class="glass-effect rounded-xl overflow-hidden">
-            <div class="animate-pulse p-12 text-center">
-                <div class="w-16 h-16 bg-indigo-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                </div>
-                <p class="text-slate-300 text-lg">Carregando clientes...</p>
+        <div class="bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+            <div id="clients-container" class="overflow-x-auto custom-scrollbar">
+                <!-- Loading skeleton aparecerá aqui -->
             </div>
         </div>
+        
+        <!-- Pagination -->
+        <div id="pagination-container" class="mt-4"></div>
     </main>
     
     <!-- Modal: Novo Cliente -->
-    <div id="modal-new-client" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="glass-effect rounded-xl p-8 max-w-lg w-full mx-4 my-8 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-6">Novo Cliente</h3>
-            <form onsubmit="createClient(event)" class="space-y-4">
+    <div id="modal-new-client" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+        <div class="bg-slate-800 rounded-lg shadow-2xl max-w-md w-full mx-4 animate-slide-up">
+            <div class="flex items-center justify-between p-6 border-b border-slate-700">
+                <h3 class="text-xl font-semibold text-white">👤 Novo Cliente</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form onsubmit="createClient(event)" class="p-6 space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Nome Completo *</label>
                     <input type="text" id="new-name" required
-                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                           placeholder="João Silva">
+                           class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Email *</label>
                     <input type="email" id="new-email" required
-                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                           placeholder="joao@empresa.com.br">
+                           class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Telefone</label>
                     <input type="tel" id="new-phone"
-                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                           placeholder="(11) 98765-4321">
+                           class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-2">Empresa</label>
                     <input type="text" id="new-company"
-                           class="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                           placeholder="Empresa Ltda">
+                           class="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
                 </div>
                 
-                <div class="bg-slate-800 p-4 rounded-lg border border-slate-600">
-                    <div class="flex items-center mb-2">
-                        <svg class="w-5 h-5 text-indigo-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm font-medium text-slate-300">Senha Automática</span>
-                    </div>
-                    <p class="text-xs text-slate-400">Uma senha segura será gerada automaticamente e exibida após a criação.</p>
-                </div>
-                
-                <div class="flex space-x-3 pt-4">
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-700">
                     <button type="button" onclick="closeModal()" 
-                            class="flex-1 px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
+                            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all">
                         Cancelar
                     </button>
                     <button type="submit" 
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all">
+                            class="px-6 py-2 btn-primary text-white rounded-lg font-semibold">
                         Criar Cliente
                     </button>
                 </div>
@@ -147,41 +139,16 @@
         </div>
     </div>
     
-    <!-- Modal: Senha Gerada -->
-    <div id="modal-password" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-        <div class="glass-effect rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div class="text-center">
-                <div class="w-16 h-16 bg-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-white mb-2">Cliente Criado com Sucesso!</h3>
-                <p class="text-slate-400 mb-6">Anote a senha gerada abaixo:</p>
-                
-                <div class="bg-slate-800 p-4 rounded-lg border-2 border-indigo-500 mb-6">
-                    <p class="text-xs text-slate-400 mb-2">Senha gerada:</p>
-                    <p id="generated-password" class="text-2xl font-mono font-bold text-indigo-400"></p>
-                </div>
-                
-                <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-3 mb-6">
-                    <p class="text-xs text-yellow-400">
-                        <strong>⚠️ Importante:</strong> Esta senha só será exibida uma vez. Copie e envie para o cliente.
-                    </p>
-                </div>
-                
-                <button onclick="copyPassword()" 
-                        class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-all mb-3">
-                    📋 Copiar Senha
-                </button>
-                <button onclick="closePasswordModal()" 
-                        class="w-full px-4 py-3 glass-effect rounded-lg text-slate-300 hover:bg-slate-700 transition-all">
-                    Fechar
-                </button>
-            </div>
-        </div>
-    </div>
-    
+    <!-- Load Scripts -->
+    <script src="/portal/assets/js/ui-components.js"></script>
     <script src="/portal/assets/js/clientes.js"></script>
+    
+    <script>
+        // Exibir nome do usuário
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.name) {
+            document.getElementById('user-name').textContent = user.name;
+        }
+    </script>
 </body>
 </html>
