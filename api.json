@@ -31,12 +31,12 @@
     },
     {
       "name": "Authentication",
-      "description": "Validação de API Keys"
+      "description": "Validação de API Keys}
     ,
     {
       "name": "Licensing",
       "description": "Endpoints de licenciamento compatíveis com LicenseBoxAPI"
-    }}
+    }
   ],
   "paths": {
     "/": {
@@ -130,7 +130,7 @@
                 }
               }
             }
-          },,
+          },
     "/license/check_connection_ext": {
       "post": {
         "tags": ["Licensing"],
