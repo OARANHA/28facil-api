@@ -32,7 +32,11 @@
     {
       "name": "Authentication",
       "description": "Validação de API Keys"
-    }
+    ,
+    {
+      "name": "Licensing",
+      "description": "Endpoints de licenciamento compatíveis com LicenseBoxAPI"
+    }}
   ],
   "paths": {
     "/": {
@@ -126,7 +130,230 @@
                 }
               }
             }
-          },
+          },,
+    "/license/check_connection_ext": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Verificar conexão com servidor de licenças",
+        "description": "Endpoint para testar conectividade com o servidor (compatibilidade LicenseBoxAPI)",
+        "operationId": "checkConnectionExt",
+        "responses": {
+          "200": {
+            "description": "Conexão OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/license/latest_version": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Obter versão mais recente",
+        "description": "Retorna informações sobre a versão mais recente disponível",
+        "operationId": "latestVersion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Versão disponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"},
+                    "version": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/license/activate_compat": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Ativar licença",
+        "description": "Ativa uma licença e retorna arquivo de licença (compatibilidade LicenseBoxAPI)",
+        "operationId": "activateLicenseCompat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "license_code", "client_name"],
+                "properties": {
+                  "product_id": {"type": "string"},
+                  "license_code": {"type": "string"},
+                  "client_name": {"type": "string"},
+                  "verify_type": {"type": "string", "default": "envato"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Licença ativada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"},
+                    "lic_response": {"type": "string", "description": "Arquivo de licença em base64"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/license/verify_compat": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Verificar licença",
+        "description": "Verifica status de uma licença ativa",
+        "operationId": "verifyLicenseCompat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "license_file"],
+                "properties": {
+                  "product_id": {"type": "string"},
+                  "license_file": {"type": "string", "description": "Arquivo de licença em base64"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status da licença",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/license/deactivate_compat": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Desativar licença",
+        "description": "Desativa uma licença ativa",
+        "operationId": "deactivateLicenseCompat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "license_file"],
+                "properties": {
+                  "product_id": {"type": "string"},
+                  "license_file": {"type": "string", "description": "Arquivo de licença em base64"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Licença desativada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/license/check_update": {
+      "post": {
+        "tags": ["Licensing"],
+        "summary": "Verificar atualizações",
+        "description": "Verifica se há atualizações disponíveis para o produto",
+        "operationId": "checkUpdate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "current_version"],
+                "properties": {
+                  "product_id": {"type": "string"},
+                  "current_version": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status de atualização",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "boolean"},
+                    "message": {"type": "string"},
+                    "update_available": {"type": "boolean"},
+                    "latest_version": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
           "429": {
             "description": "Rate limit excedido",
             "content": {
