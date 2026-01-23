@@ -99,7 +99,13 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
     $csrfExempt = [
         '/license/validate',
         '/license/activate',
-        '/license/check'
+        '/license/check',
+        '/license/check_connection_ext',
+        '/license/latest_version',
+        '/license/activate_compat',
+        '/license/verify_compat',
+        '/license/deactivate_compat',
+        '/license/check_update'
     ];
     
     if (!in_array($path, $csrfExempt)) {
@@ -224,6 +230,46 @@ try {
     if ($path === '/license/check' && $method === 'GET') {
         $controller = new LicenseController($db);
         echo json_encode($controller->check(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // LicenseBoxAPI Compatibility Routes
+    // ===========================
+    
+    if ($path === '/license/check_connection_ext' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->checkConnectionExt(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/latest_version' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->latestVersion(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/activate_compat' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->activateLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/verify_compat' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->verifyLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/deactivate_compat' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->deactivateLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/check_update' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->checkUpdate(), JSON_PRETTY_PRINT);
         exit;
     }
     
