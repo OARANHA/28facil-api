@@ -31,8 +31,8 @@
     },
     {
       "name": "Authentication",
-      "description": "Validação de API Keys},
-    ,
+      "description": "Validação de API Keys"
+    },
     {
       "name": "Licensing",
       "description": "Endpoints de licenciamento compatíveis com LicenseBoxAPI"
@@ -131,6 +131,19 @@
               }
             }
           },
+          "429": {
+            "description": "Rate limit excedido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/license/check_connection_ext": {
       "post": {
         "tags": ["Licensing"],
@@ -145,8 +158,8 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" }
                   }
                 }
               }
@@ -168,7 +181,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "product_id": {"type": "string"}
+                  "product_id": { "type": "string" }
                 }
               }
             }
@@ -182,9 +195,9 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"},
-                    "version": {"type": "string"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "version": { "type": "string" }
                   }
                 }
               }
@@ -207,10 +220,10 @@
                 "type": "object",
                 "required": ["product_id", "license_code", "client_name"],
                 "properties": {
-                  "product_id": {"type": "string"},
-                  "license_code": {"type": "string"},
-                  "client_name": {"type": "string"},
-                  "verify_type": {"type": "string", "default": "envato"}
+                  "product_id": { "type": "string" },
+                  "license_code": { "type": "string" },
+                  "client_name": { "type": "string" },
+                  "verify_type": { "type": "string", "default": "envato" }
                 }
               }
             }
@@ -224,9 +237,12 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"},
-                    "lic_response": {"type": "string", "description": "Arquivo de licença em base64"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "lic_response": {
+                      "type": "string",
+                      "description": "Arquivo de licença em base64"
+                    }
                   }
                 }
               }
@@ -249,8 +265,11 @@
                 "type": "object",
                 "required": ["product_id", "license_file"],
                 "properties": {
-                  "product_id": {"type": "string"},
-                  "license_file": {"type": "string", "description": "Arquivo de licença em base64"}
+                  "product_id": { "type": "string" },
+                  "license_file": {
+                    "type": "string",
+                    "description": "Arquivo de licença em base64"
+                  }
                 }
               }
             }
@@ -264,8 +283,8 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" }
                   }
                 }
               }
@@ -288,8 +307,11 @@
                 "type": "object",
                 "required": ["product_id", "license_file"],
                 "properties": {
-                  "product_id": {"type": "string"},
-                  "license_file": {"type": "string", "description": "Arquivo de licença em base64"}
+                  "product_id": { "type": "string" },
+                  "license_file": {
+                    "type": "string",
+                    "description": "Arquivo de licença em base64"
+                  }
                 }
               }
             }
@@ -303,8 +325,8 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" }
                   }
                 }
               }
@@ -327,8 +349,8 @@
                 "type": "object",
                 "required": ["product_id", "current_version"],
                 "properties": {
-                  "product_id": {"type": "string"},
-                  "current_version": {"type": "string"}
+                  "product_id": { "type": "string" },
+                  "current_version": { "type": "string" }
                 }
               }
             }
@@ -342,24 +364,11 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {"type": "boolean"},
-                    "message": {"type": "string"},
-                    "update_available": {"type": "boolean"},
-                    "latest_version": {"type": "string"}
+                    "status": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "update_available": { "type": "boolean" },
+                    "latest_version": { "type": "string" }
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-          "429": {
-            "description": "Rate limit excedido",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RateLimitError"
                 }
               }
             }
@@ -381,34 +390,22 @@
       "HealthResponse": {
         "type": "object",
         "properties": {
-          "status": {
-            "type": "string",
-            "example": "success"
-          },
+          "status": { "type": "string", "example": "success" },
           "message": {
             "type": "string",
             "example": "28Facil API Server is running!"
           },
-          "version": {
-            "type": "string",
-            "example": "1.0.0"
-          },
+          "version": { "type": "string", "example": "1.0.0" },
           "timestamp": {
             "type": "string",
             "format": "date-time",
             "example": "2026-01-20T04:00:00-03:00"
           },
-          "php_version": {
-            "type": "string",
-            "example": "8.2.0"
-          },
+          "php_version": { "type": "string", "example": "8.2.0" },
           "database": {
             "type": "object",
             "properties": {
-              "host": {
-                "type": "string",
-                "example": "mysql"
-              },
+              "host": { "type": "string", "example": "mysql" },
               "database": {
                 "type": "string",
                 "example": "28facil_api"
@@ -424,19 +421,9 @@
       "ValidationSuccess": {
         "type": "object",
         "properties": {
-          "valid": {
-            "type": "boolean",
-            "example": true
-          },
-          "user_id": {
-            "type": "integer",
-            "nullable": true,
-            "example": 1
-          },
-          "name": {
-            "type": "string",
-            "example": "Minha API Key"
-          },
+          "valid": { "type": "boolean", "example": true },
+          "user_id": { "type": "integer", "nullable": true, "example": 1 },
+          "name": { "type": "string", "example": "Minha API Key" },
           "prefix": {
             "type": "string",
             "example": "28fc_a1b2c3d4"
@@ -449,14 +436,8 @@
             },
             "example": ["read", "write"]
           },
-          "rate_limit": {
-            "type": "integer",
-            "example": 1000
-          },
-          "usage_count": {
-            "type": "integer",
-            "example": 42
-          },
+          "rate_limit": { "type": "integer", "example": 1000 },
+          "usage_count": { "type": "integer", "example": 42 },
           "last_used_at": {
             "type": "string",
             "format": "date-time",
@@ -467,10 +448,7 @@
       "ValidationError": {
         "type": "object",
         "properties": {
-          "valid": {
-            "type": "boolean",
-            "example": false
-          },
+          "valid": { "type": "boolean", "example": false },
           "error": {
             "type": "string",
             "example": "Invalid or expired API key"
@@ -486,7 +464,6 @@
           },
           "retry_after": {
             "type": "integer",
-            "description": "Segundos até poder tentar novamente",
             "example": 3600
           },
           "limit": {
