@@ -358,4 +358,242 @@ class LicenseController
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
     }
+
+    // ==========================================
+    // ENDPOINTS COMPATÍVEIS COM LICENSEBOX API
+    // Para integração com sistema GoFresha/28Pro
+    // ==========================================
+
+    /**
+     * POST /api/check_connection_ext
+     * Verifica conexão com a API
+     */
+    public function checkConnectionExt($request, $response)
+    {
+        return [
+            'status' => true,
+            'message' => 'Connection successful'
+        ];
+    }
+
+    /**
+     * POST /api/latest_version
+     * Retorna a versão mais recente do produto
+     * 
+     * Payload esperado: {"product_id": "2006AB23"}
+     */
+    public function latestVersion($request, $response)
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productId = $input['product_id'] ?? null;
+        
+        if (!$productId) {
+            http_response_code(400);
+            return [
+                'status' => false,
+                'message' => 'product_id é obrigatório'
+            ];
+        }
+        
+        // Retornar versão atual do produto
+        return [
+            'status' => true,
+            'current_version' => 'v2.0.0',
+            'latest_version' => 'v2.0.0',
+            'changelog' => 'Sistema de licenciamento migrado para 28Facil API',
+            'update_available' => false
+        ];
+    }
+
+    /**
+     * POST /api/activate_license
+     * Ativa uma licença para um cliente
+     * 
+     * Payload esperado: {
+     *   "product_id": "2006AB23",
+     *   "license_code": "XXXX-XXXX-XXXX",
+     *   "client_name": "Nome do Cliente",
+     *   "verify_type": "envato"
+     * }
+     */
+    public function activateLicenseCompat($request, $response)
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productId = $input['product_id'] ?? null;
+        $licenseCode = $input['license_code'] ?? null;
+        $clientName = $input['client_name'] ?? null;
+        $verifyType = $input['verify_type'] ?? 'default';
+        
+        if (!$productId || !$licenseCode || !$clientName) {
+            http_response_code(400);
+            return [
+                'status' => false,
+                'message' => 'product_id, license_code e client_name são obrigatórios'
+            ];
+        }
+        
+        // Gerar um "license file" content (base64 do JSON com dados da licença)
+        $licenseData = [
+            'product_id' => $productId,
+            'license_code' => $licenseCode,
+            'client_name' => $clientName,
+            'activated_at' => date('Y-m-d H:i:s'),
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+1 year')),
+            'signature' => hash('sha256', $productId . $licenseCode . $clientName . 'salt28facil')
+        ];
+        
+        $licenseFileContent = base64_encode(json_encode($licenseData));
+        
+        return [
+            'status' => true,
+            'message' => 'Licença ativada com sucesso',
+            'lic_response' => $licenseFileContent
+        ];
+    }
+
+    /**
+     * POST /api/verify_license
+     * Verifica se uma licença é válida
+     * 
+     * Payload esperado: {
+     *   "product_id": "2006AB23",
+     *   "license_file": "base64_content" OU
+     *   "license_code": "XXXX-XXXX-XXXX",
+     *   "client_name": "Nome do Cliente"
+     * }
+     */
+    public function verifyLicenseCompat($request, $response)
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productId = $input['product_id'] ?? null;
+        $licenseFile = $input['license_file'] ?? null;
+        $licenseCode = $input['license_code'] ?? null;
+        $clientName = $input['client_name'] ?? null;
+        
+        if (!$productId) {
+            http_response_code(400);
+            return [
+                'status' => false,
+                'message' => 'product_id é obrigatório'
+            ];
+        }
+        
+        // Verificar via license_file (base64) OU via license_code+client_name
+        if ($licenseFile) {
+            try {
+                $licenseData = json_decode(base64_decode($licenseFile), true);
+                
+                if (!$licenseData || $licenseData['product_id'] !== $productId) {
+                    return [
+                        'status' => false,
+                        'message' => 'Licença inválida ou expirada'
+                    ];
+                }
+                
+                // Verificar expiração
+                if (isset($licenseData['expires_at']) && strtotime($licenseData['expires_at']) < time()) {
+                    return [
+                        'status' => false,
+                        'message' => 'Licença expirada'
+                    ];
+                }
+                
+                return [
+                    'status' => true,
+                    'message' => 'Verified! Thanks for purchasing.'
+                ];
+                
+            } catch (Exception $e) {
+                return [
+                    'status' => false,
+                    'message' => 'Erro ao processar licença'
+                ];
+            }
+        }
+        
+        // Verificar via license_code + client_name
+        if ($licenseCode && $clientName) {
+            // Aqui você pode integrar com seu sistema de validação de purchase codes
+            // Por enquanto, aceitar qualquer código para compatibilidade
+            return [
+                'status' => true,
+                'message' => 'Verified! Thanks for purchasing.'
+            ];
+        }
+        
+        return [
+            'status' => false,
+            'message' => 'Dados insuficientes para verificação'
+        ];
+    }
+
+    /**
+     * POST /api/deactivate_license
+     * Desativa uma licença
+     * 
+     * Payload esperado: {
+     *   "product_id": "2006AB23",
+     *   "license_file": "base64_content" OU
+     *   "license_code": "XXXX-XXXX-XXXX",
+     *   "client_name": "Nome do Cliente"
+     * }
+     */
+    public function deactivateLicenseCompat($request, $response)
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productId = $input['product_id'] ?? null;
+        
+        if (!$productId) {
+            http_response_code(400);
+            return [
+                'status' => false,
+                'message' => 'product_id é obrigatório'
+            ];
+        }
+        
+        // Por enquanto, apenas retornar sucesso
+        // Aqui você pode implementar lógica de desativação no seu banco
+        return [
+            'status' => true,
+            'message' => 'Licença desativada com sucesso'
+        ];
+    }
+
+    /**
+     * POST /api/check_update
+     * Verifica se há atualizações disponíveis
+     * 
+     * Payload esperado: {
+     *   "product_id": "2006AB23",
+     *   "current_version": "v1.0.0"
+     * }
+     */
+    public function checkUpdate($request, $response)
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productId = $input['product_id'] ?? null;
+        $currentVersion = $input['current_version'] ?? 'v1.0.0';
+        
+        if (!$productId) {
+            http_response_code(400);
+            return [
+                'status' => false,
+                'message' => 'product_id é obrigatório'
+            ];
+        }
+        
+        // Retornar que não há atualizações por enquanto
+        return [
+            'status' => true,
+            'current_version' => $currentVersion,
+            'latest_version' => 'v2.0.0',
+            'update_available' => false,
+            'message' => 'Sistema atualizado. Nenhuma atualização disponível no momento.'
+        ];
+    }
 }
