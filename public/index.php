@@ -361,6 +361,7 @@ try {
     
     // ===========================
     // Rotas de Autenticação (públicas)
+    // Versão SEM prefixo /api
     // ===========================
     
     if ($path === '/auth/register' && $method === 'POST') {
@@ -376,6 +377,29 @@ try {
     }
     
     if ($path === '/auth/logout' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->logout(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas de Autenticação COM prefixo /api
+    // Portal usa essas rotas
+    // ===========================
+    
+    if ($path === '/api/auth/register' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->register(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/auth/login' && $method === 'POST') {
+        $controller = new AuthController($db);
+        echo json_encode($controller->login(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/auth/logout' && $method === 'POST') {
         $controller = new AuthController($db);
         echo json_encode($controller->logout(), JSON_PRETTY_PRINT);
         exit;
@@ -548,9 +572,9 @@ function healthCheck() {
                 'check_update' => ['method' => 'POST', 'path' => '/api/check_update', 'auth' => 'LB-API-KEY']
             ],
             'auth' => [
-                'register' => ['method' => 'POST', 'path' => '/auth/register', 'auth' => 'public'],
-                'login' => ['method' => 'POST', 'path' => '/auth/login', 'auth' => 'public'],
-                'logout' => ['method' => 'POST', 'path' => '/auth/logout', 'auth' => 'public'],
+                'register' => ['method' => 'POST', 'path' => '/api/auth/register', 'auth' => 'public'],
+                'login' => ['method' => 'POST', 'path' => '/api/auth/login', 'auth' => 'public'],
+                'logout' => ['method' => 'POST', 'path' => '/api/auth/logout', 'auth' => 'public'],
                 'me' => ['method' => 'GET', 'path' => '/auth/me', 'auth' => 'bearer_token']
             ],
             'users' => [
