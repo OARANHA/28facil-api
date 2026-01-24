@@ -31,27 +31,17 @@ try {
         echo "   Criando usuário admin...\n\n";
         
         // Criar admin
-        $uuid = sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-        
         $hashedPassword = password_hash($defaultPassword, PASSWORD_BCRYPT);
         
         $createStmt = $db->prepare("
-            INSERT INTO users (uuid, name, email, password, role, status)
-            VALUES (:uuid, :name, :email, :password, 'admin', 'active')
+            INSERT INTO users (name, email, password_hash, role, status)
+            VALUES (:name, :email, :password_hash, 'admin', 'active')
         ");
         
         $createStmt->execute([
-            'uuid' => $uuid,
             'name' => 'Administrador',
             'email' => $adminEmail,
-            'password' => $hashedPassword
+            'password_hash' => $hashedPassword
         ]);
         
         echo "✅ Usuário admin criado com sucesso!\n";
@@ -67,14 +57,14 @@ try {
         
         $updateStmt = $db->prepare("
             UPDATE users 
-            SET password = :password,
+            SET password_hash = :password_hash,
                 status = 'active',
                 updated_at = NOW()
             WHERE id = :id
         ");
         
         $updateStmt->execute([
-            'password' => $hashedPassword,
+            'password_hash' => $hashedPassword,
             'id' => $admin['id']
         ]);
         
