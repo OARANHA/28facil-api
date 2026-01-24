@@ -152,7 +152,7 @@ header('X-Powered-By: 28Facil/2.1');
 // CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-API-Key, Authorization, X-License-Key, X-CSRF-TOKEN');
+header('Access-Control-Allow-Headers: Content-Type, X-API-Key, Authorization, X-License-Key, X-CSRF-TOKEN, LB-API-KEY, LB-URL, LB-IP, LB-LANG');
 header('Access-Control-Allow-Credentials: true');
 
 if ($method === 'OPTIONS') {
@@ -430,6 +430,7 @@ function healthCheck() {
         'php_version' => phpversion(),
         'features' => [
             'licensing' => 'enabled',
+            'licensebox_compatibility' => 'enabled',
             'portal' => 'enabled',
             'users' => 'enabled',
             'api_keys' => 'enabled',
@@ -440,6 +441,39 @@ function healthCheck() {
             'httponly_cookies' => 'enabled',
             'security_headers' => 'enabled',
             'rate_limiting' => 'client-side'
+        ],
+        'endpoints' => [
+            'licensing' => [
+                'validate' => ['method' => 'POST', 'path' => '/license/validate', 'auth' => 'public'],
+                'activate' => ['method' => 'POST', 'path' => '/license/activate', 'auth' => 'public'],
+                'check' => ['method' => 'GET', 'path' => '/license/check', 'auth' => 'public']
+            ],
+            'licensebox_compat' => [
+                'check_connection' => ['method' => 'POST', 'path' => '/license/check_connection_ext', 'auth' => 'LB-API-KEY'],
+                'latest_version' => ['method' => 'POST', 'path' => '/license/latest_version', 'auth' => 'LB-API-KEY'],
+                'activate_license' => ['method' => 'POST', 'path' => '/license/activate_compat', 'auth' => 'LB-API-KEY'],
+                'verify_license' => ['method' => 'POST', 'path' => '/license/verify_compat', 'auth' => 'LB-API-KEY'],
+                'deactivate_license' => ['method' => 'POST', 'path' => '/license/deactivate_compat', 'auth' => 'LB-API-KEY'],
+                'check_update' => ['method' => 'POST', 'path' => '/license/check_update', 'auth' => 'LB-API-KEY']
+            ],
+            'auth' => [
+                'register' => ['method' => 'POST', 'path' => '/auth/register', 'auth' => 'public'],
+                'login' => ['method' => 'POST', 'path' => '/auth/login', 'auth' => 'public'],
+                'logout' => ['method' => 'POST', 'path' => '/auth/logout', 'auth' => 'public'],
+                'me' => ['method' => 'GET', 'path' => '/auth/me', 'auth' => 'bearer_token']
+            ],
+            'users' => [
+                'list' => ['method' => 'GET', 'path' => '/users', 'auth' => 'bearer_token'],
+                'create' => ['method' => 'POST', 'path' => '/users', 'auth' => 'bearer_token'],
+                'get' => ['method' => 'GET', 'path' => '/users/{id}', 'auth' => 'bearer_token'],
+                'update' => ['method' => 'PUT', 'path' => '/users/{id}', 'auth' => 'bearer_token'],
+                'delete' => ['method' => 'DELETE', 'path' => '/users/{id}', 'auth' => 'bearer_token']
+            ],
+            'licenses_mgmt' => [
+                'list' => ['method' => 'GET', 'path' => '/licenses', 'auth' => 'bearer_token'],
+                'create' => ['method' => 'POST', 'path' => '/licenses', 'auth' => 'bearer_token'],
+                'get' => ['method' => 'GET', 'path' => '/licenses/{id}', 'auth' => 'bearer_token']
+            ]
         ]
     ];
     
@@ -452,6 +486,28 @@ function healthCheck() {
                 'host' => getenv('DB_HOST') ?: 'postgres',
                 'database' => getenv('DB_DATABASE') ?: '28facil_api'
             ];
+            
+            // Buscar estatísticas de licenças
+            try {
+                $stmt = $db->query("SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+                    SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
+                    SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended
+                FROM licenses");
+                $stats = $stmt->fetch();
+                
+                $response['statistics'] = [
+                    'licenses' => [
+                        'total' => (int)$stats['total'],
+                        'active' => (int)$stats['active'],
+                        'inactive' => (int)$stats['inactive'],
+                        'suspended' => (int)$stats['suspended']
+                    ]
+                ];
+            } catch (Exception $e) {
+                // Ignora erro de estatísticas
+            }
         }
     } catch (Exception $e) {
         $response['database'] = [
@@ -538,6 +594,7 @@ function notFound() {
     echo json_encode([
         'error' => 'Endpoint not found',
         'message' => 'Check /api.json for available endpoints',
+        'documentation' => 'https://api.28facil.com.br/swagger/',
         'portal' => 'https://api.28facil.com.br/portal/'
     ]);
 }
