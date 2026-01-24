@@ -108,6 +108,8 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         // Rotas de licenciamento público
         '/license/validate',
         '/license/activate',
+        '/license/verify',
+        '/license/deactivate',
         '/license/check',
         '/license/check_connection_ext',
         '/license/latest_version',
@@ -118,7 +120,9 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         
         // Rotas 28Pro Installer (prefixo /api)
         '/api/license/activate',
-        '/api/license/validate', 
+        '/api/license/validate',
+        '/api/license/verify',
+        '/api/license/deactivate',
         '/api/license/check',
         
         // Rotas LicenseBoxAPI com prefixo /api
@@ -244,6 +248,18 @@ try {
         exit;
     }
     
+    if ($path === '/api/license/verify' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->verifyLicense(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/license/deactivate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->deactivateLicense(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
     if ($path === '/api/license/validate' && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->validate(), JSON_PRETTY_PRINT);
@@ -310,6 +326,18 @@ try {
     if ($path === '/license/activate' && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->activate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/verify' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->verifyLicense(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/license/deactivate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->deactivateLicense(), JSON_PRETTY_PRINT);
         exit;
     }
     
@@ -556,11 +584,15 @@ function healthCheck() {
             'licensing_28pro' => [
                 'validate' => ['method' => 'POST', 'path' => '/api/license/validate', 'auth' => 'public'],
                 'activate' => ['method' => 'POST', 'path' => '/api/license/activate', 'auth' => 'public'],
+                'verify' => ['method' => 'POST', 'path' => '/api/license/verify', 'auth' => 'public'],
+                'deactivate' => ['method' => 'POST', 'path' => '/api/license/deactivate', 'auth' => 'public'],
                 'check' => ['method' => 'GET', 'path' => '/api/license/check', 'auth' => 'public']
             ],
             'licensing' => [
                 'validate' => ['method' => 'POST', 'path' => '/license/validate', 'auth' => 'public'],
                 'activate' => ['method' => 'POST', 'path' => '/license/activate', 'auth' => 'public'],
+                'verify' => ['method' => 'POST', 'path' => '/license/verify', 'auth' => 'public'],
+                'deactivate' => ['method' => 'POST', 'path' => '/license/deactivate', 'auth' => 'public'],
                 'check' => ['method' => 'GET', 'path' => '/license/check', 'auth' => 'public']
             ],
             'licensebox_compat' => [
