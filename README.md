@@ -1,389 +1,265 @@
 # 28Facil API - Sistema de Licenciamento
 
-![28Facil](public/portal/assets/logo.jpg)
+<div align="center">
 
-Sistema completo de licenciamento com portal web para gestão de licenças de software.
+![28Facil API](https://img.shields.io/badge/28Facil-API-blue?style=for-the-badge)
+![PHP](https://img.shields.io/badge/PHP-8.2-777BB4?style=for-the-badge&logo=php)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?style=for-the-badge&logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)
+![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)
 
-## 🚀 Features
+**Sistema completo de gerenciamento de licenças com portal web administrativo e APIs públicas**
 
-### Portal Web
-- ✅ Cadastro e login de usuários
-- ✅ Dashboard para gerenciar licenças
-- ✅ Geração de purchase codes
-- ✅ Visualização de ativações
-- ✅ Painel administrativo
-- ✅ Interface responsiva (Tailwind CSS)
+[Documentação](https://api.28facil.com.br/swagger/) • [Portal Web](https://api.28facil.com.br/portal/) • [API Health](https://api.28facil.com.br/health)
 
-### API Backend
-- ✅ Autenticação JWT
-- ✅ Validação de purchase codes
-- ✅ Ativação de licenças
-- ✅ Health checks
-- ✅ CRUD completo de licenças
-- ✅ Sistema de API Keys legado
-
-## 📚 Estrutura do Projeto
-
-```
-28facil-api/
-├── public/
-│   ├── index.php              # Router principal da API
-│   └── portal/
-│       ├── index.html         # Login/Cadastro
-│       ├── dashboard.html     # Dashboard do cliente
-│       └── assets/
-│           ├── js/
-│           │   ├── app.js
-│           │   └── dashboard.js
-│           ├── logo.jpg
-│           └── favicon.ico
-├── src/
-│   └── Controllers/
-│       ├── AuthController.php
-│       └── LicenseController.php
-├── database/
-│   └── migrations/
-│       ├── 001_create_api_keys_table.sql
-│       ├── 002_create_users_table.sql
-│       ├── 003_create_licenses_table.sql
-│       └── 004_create_license_activations_table.sql
-├── config/
-│   └── database.php
-└── .env.example
-```
-
-## 🛠️ Instalação
-
-### 1. Criar banco de dados
-
-```bash
-docker exec -i 28facil-mysql mysql -uroot -p28facil_root_pass <<EOF
-CREATE DATABASE IF NOT EXISTS 28facil_api;
-EOF
-```
-
-### 2. Executar migrations
-
-```bash
-# Em ordem:
-cat database/migrations/001_create_api_keys_table.sql | \
-  docker exec -i 28facil-mysql mysql -uroot -p28facil_root_pass 28facil_api
-
-cat database/migrations/002_create_users_table.sql | \
-  docker exec -i 28facil-mysql mysql -uroot -p28facil_root_pass 28facil_api
-
-cat database/migrations/003_create_licenses_table.sql | \
-  docker exec -i 28facil-mysql mysql -uroot -p28facil_root_pass 28facil_api
-
-cat database/migrations/004_create_license_activations_table.sql | \
-  docker exec -i 28facil-mysql mysql -uroot -p28facil_root_pass 28facil_api
-```
-
-### 3. Deploy via Portainer
-
-1. **Stacks → 28facil-api → Pull and redeploy**
-2. Aguardar o container reiniciar
-3. Acessar: `https://api.28facil.com.br/portal/`
-
-## 👤 Usuário Admin Padrão
-
-Após executar a migration `002_create_users_table.sql`:
-
-- **Email:** `admin@28facil.com.br`
-- **Senha:** `Admin@2026`
-
-⚠️ **Altere a senha após o primeiro login!**
-
-## 🔗 Endpoints da API
-
-### Públicos (sem autenticação)
-
-#### Health Check
-```bash
-GET /health
-# ou
-GET https://api.28facil.com.br/health
-```
-
-#### Registrar Usuário
-```bash
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "name": "João Silva",
-  "email": "joao@exemplo.com",
-  "password": "senha123"
-}
-```
-
-#### Login
-```bash
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "joao@exemplo.com",
-  "password": "senha123"
-}
-
-# Retorna:
-{
-  "success": true,
-  "token": "eyJ...",
-  "user": {...}
-}
-```
-
-### Rotas para Aplicação (AiVoPro)
-
-#### Validar Purchase Code
-```bash
-POST /api/license/validate
-Content-Type: application/json
-
-{
-  "purchase_code": "ABCD1234-EFGH5678-IJKL9012-MNOP3456"
-}
-
-# Retorna:
-{
-  "valid": true,
-  "license": {
-    "id": 1,
-    "product": "AiVoPro",
-    "type": "lifetime",
-    "status": "active",
-    "max_activations": 1,
-    "active_activations": 0,
-    "can_activate": true
-  }
-}
-```
-
-#### Ativar Licença
-```bash
-POST /api/license/activate
-Content-Type: application/json
-
-{
-  "purchase_code": "ABCD1234-EFGH5678-IJKL9012-MNOP3456",
-  "domain": "meusite.com.br",
-  "installation_hash": "sha256_hash_unico_da_instalacao",
-  "installation_name": "Produção"
-}
-
-# Retorna:
-{
-  "success": true,
-  "activated": true,
-  "license_key": "28fc_abc123...",
-  "message": "Licença ativada com sucesso"
-}
-```
-
-#### Check Licença (Health Check)
-```bash
-GET /api/license/check
-X-License-Key: 28fc_abc123...
-
-# Retorna:
-{
-  "active": true,
-  "status": "active",
-  "domain": "meusite.com.br",
-  "activated_at": "2026-01-21T00:00:00Z",
-  "expires_at": null,
-  "last_check_at": "2026-01-21T03:40:00Z"
-}
-```
-
-### Rotas Protegidas (requerem token JWT)
-
-#### Listar Minhas Licenças
-```bash
-GET /api/licenses
-Authorization: Bearer {token}
-
-# Retorna:
-{
-  "success": true,
-  "licenses": [...]
-}
-```
-
-#### Criar Nova Licença (Admin)
-```bash
-POST /api/licenses
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "product_name": "AiVoPro",
-  "license_type": "lifetime",
-  "max_activations": 1
-}
-```
-
-#### Detalhes da Licença
-```bash
-GET /api/licenses/{id}
-Authorization: Bearer {token}
-
-# Retorna:
-{
-  "success": true,
-  "license": {
-    "id": 1,
-    "purchase_code": "...",
-    "activations": [...]
-  }
-}
-```
-
-## 💻 Fluxo de Uso na Aplicação AiVoPro
-
-### 1. Tela de License
-```php
-// Usuário insere o purchase code
-$purchaseCode = $_POST['purchase_code'];
-
-// Validar
-$response = callAPI('POST', '/api/license/validate', [
-    'purchase_code' => $purchaseCode
-]);
-
-if ($response['valid'] && $response['license']['can_activate']) {
-    // Pode ativar
-}
-```
-
-### 2. Ativar Licença
-```php
-$domain = $_SERVER['HTTP_HOST'];
-$installationHash = hash('sha256', $domain . getSystemInfo());
-
-$response = callAPI('POST', '/api/license/activate', [
-    'purchase_code' => $purchaseCode,
-    'domain' => $domain,
-    'installation_hash' => $installationHash,
-    'installation_name' => 'Produção'
-]);
-
-if ($response['activated']) {
-    // Salvar license_key localmente
-    file_put_contents('.license', $response['license_key']);
-}
-```
-
-### 3. Verificar Licença (cron diário)
-```php
-$licenseKey = file_get_contents('.license');
-
-$response = callAPI('GET', '/api/license/check', null, [
-    'X-License-Key: ' . $licenseKey
-]);
-
-if (!$response['active']) {
-    // Licença inválida/expirada
-    redirectToLicenseScreen();
-}
-```
-
-## 🌐 Acessos
-
-- **Portal:** https://api.28facil.com.br/portal/
-- **API:** https://api.28facil.com.br/api/
-- **Health:** https://api.28facil.com.br/health
-- **Docs:** https://api.28facil.com.br/api.json
-
-## 🔐 Segurança
-
-- Senhas: bcrypt hash
-- JWT: HS256 (30 dias de validade)
-- API Keys: SHA256 hash
-- License Keys: formato `28fc_` + 64 chars hex
-- Purchase Codes: formato `XXXX-XXXX-XXXX-XXXX`
-
-## 📊 Banco de Dados
-
-### Tabelas
-
-- `users` - Usuários do portal
-- `licenses` - Licenças (purchase codes)
-- `license_activations` - Ativações em domínios
-- `api_keys` - API Keys (sistema legado)
-
-## 👨‍💻 Desenvolvimento
-
-### Adicionar nova rota
-
-1. Editar `public/index.php`
-2. Adicionar case no switch/router
-3. Criar método no controller apropriado
-
-### Testar localmente
-
-```bash
-php -S localhost:8000 -t public/
-```
-
-## 📦 Deploy
-
-### Via Git
-```bash
-git pull origin main
-docker exec 28facil-api git pull
-docker restart 28facil-api
-```
-
-### Via Portainer
-1. Stacks → 28facil-api
-2. Pull and redeploy
-
-## 🐛 Troubleshooting
-
-### Erro de conexão com banco
-```bash
-# Verificar se o MySQL está rodando
-docker ps | grep mysql
-
-# Testar conexão
-docker exec -it 28facil-mysql mysql -uroot -p28facil_root_pass -e "SHOW DATABASES;"
-```
-
-### Portal não carrega
-```bash
-# Verificar logs do container
-docker logs 28facil-api -f
-
-# Testar API
-curl https://api.28facil.com.br/health
-```
-
-### Licença não ativa
-1. Verificar purchase code válido
-2. Verificar limite de ativações
-3. Checar status da licença no dashboard
-
-## 📝 TODO
-
-- [ ] Sistema de pagamento integrado
-- [ ] Emails de notificação
-- [ ] Renovação automática de licenças
-- [ ] Relatórios e analytics
-- [ ] Webhook para eventos de licença
-- [ ] Suporte a multiple products
-- [ ] Sistema de descontos/cupons
-
-## 💬 Suporte
-
-- **Email:** admin@28facil.com.br
-- **Docs:** https://api.28facil.com.br/api.json
-- **GitHub:** https://github.com/OARANHA/28facil-api
+</div>
 
 ---
 
-**Made with ❤️ by 28Facil Team**
+## 🚀 Características
 
-© 2026 AiVoPro. All rights reserved.
+### 🏛️ Portal Administrativo Web
+- ✅ Gerenciamento completo de licenças
+- ✅ Painel de controle de usuários/clientes
+- ✅ Dashboard com estatísticas em tempo real
+- ✅ Geração automática de Purchase Codes
+- ✅ Controle de ativações por licença
+- ✅ Sistema de autenticação JWT com cookies HttpOnly
+- ✅ Proteção CSRF em rotas administrativas
+
+### 🔑 APIs de Licenciamento
+
+#### **APIs Nativas 28Facil**
+- `POST /license/validate` - Validar purchase code
+- `POST /license/activate` - Ativar licença em domínio
+- `GET /license/check` - Verificar status de licença ativa
+
+#### **APIs 28Pro Installer** (usado pelo seu instalador customizado)
+- `POST /api/license/activate` - Ativar licença (aceita product_id, purchase_code, domain, installation_hash)
+- `POST /api/license/validate` - Validar licença
+- `GET /api/license/check` - Verificar status
+
+#### **Compatibilidade LicenseBoxAPI** (para integração GoFresha)
+- `POST /api/check_connection_ext` - Testar conexão
+- `POST /api/latest_version` - Versão do produto
+- `POST /api/activate_license` - Ativar licença (formato LicenseBox)
+- `POST /api/verify_license` - Verificar licença
+- `POST /api/deactivate_license` - Desativar licença
+- `POST /api/check_update` - Verificar atualizações
+
+### 🔒 Segurança
+- ✅ Autenticação JWT com refresh tokens
+- ✅ Cookies HttpOnly e Secure
+- ✅ Proteção CSRF para rotas administrativas
+- ✅ APIs públicas isentas de CSRF (para instaladores)
+- ✅ Headers de segurança (X-Frame-Options, X-Content-Type-Options, etc.)
+- ✅ Senhas com hash bcrypt
+- ✅ API Keys com hash SHA256
+- ✅ Rate limiting client-side
+
+---
+
+## 📦 Deploy via Portainer
+
+### Redeploy Automático
+
+Quando você faz **"Redeploy from git repository"** no Portainer:
+
+1. ✅ Container é recriado do zero
+2. ✅ Migrations rodam automaticamente
+3. ✅ **Senha do admin é resetada automaticamente para `admin123`**
+4. ✅ Tentativas de login falhadas são limpas
+
+### Credenciais Padrão Após Redeploy
+
+```
+URL: https://api.28facil.com.br/portal/
+Email: admin@28facil.com.br
+Senha: admin123
+```
+
+> ⚠️ **IMPORTANTE**: Altere a senha padrão imediatamente após o primeiro login!
+
+### Como Alterar a Senha Padrão
+
+Para definir uma senha diferente no reset automático, edite o arquivo:
+
+```php
+// scripts/reset-admin.php
+$defaultPassword = 'admin123';  // <- Altere aqui
+```
+
+Commit e faça push. No próximo redeploy, a nova senha será usada.
+
+---
+
+## 💻 Stack Docker Compose (Portainer)
+
+```yaml
+version: '3.8'
+
+services:
+  28facil-api:
+    image: 28facil-api:latest
+    build:
+      context: https://github.com/OARANHA/28facil-api.git#main
+      dockerfile: Dockerfile
+    container_name: 28facil-api
+    restart: unless-stopped
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=28facil_api
+      - DB_USERNAME=28facil
+      - DB_PASSWORD=SuaSenhaSegura123
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=https://api.28facil.com.br
+      - APP_TIMEZONE=America/Sao_Paulo
+      - JWT_SECRET=SuaChaveSecretaJWT123
+      - JWT_EXPIRATION=86400
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.28facil-api.rule=Host(`api.28facil.com.br`)"
+      - "traefik.http.routers.28facil-api.entrypoints=websecure"
+      - "traefik.http.routers.28facil-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.28facil-api.loadbalancer.server.port=80"
+
+networks:
+  traefik:
+    external: true
+```
+
+---
+
+## 📚 Documentação
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - Histórico de versões e mudanças
+- **[GUIA_LICENCIAMENTO.md](./GUIA_LICENCIAMENTO.md)** - Guia completo de licenciamento
+  - Como cadastrar licenças
+  - Fluxo de ativação passo a passo
+  - Troubleshooting de erros comuns
+  - Exemplos de payloads para todos endpoints
+
+### Swagger/OpenAPI
+
+Documentação interativa disponível em:
+- **Swagger UI**: https://api.28facil.com.br/swagger/
+- **Especificação JSON**: https://api.28facil.com.br/api.json
+
+---
+
+## 🔧 Comandos Úteis
+
+### Acessar Container
+
+```bash
+# SSH no servidor
+ssh root@158.220.97.145
+
+# Acessar container
+docker exec -it 28facil-api bash
+```
+
+### Resetar Senha Manualmente
+
+Se por algum motivo o reset automático não funcionar:
+
+```bash
+# Dentro do container
+php /var/www/html/scripts/reset-admin.php
+```
+
+Ou direto do servidor:
+
+```bash
+docker exec -it 28facil-api php /var/www/html/scripts/reset-admin.php
+```
+
+### Ver Logs
+
+```bash
+# Logs do container
+docker logs 28facil-api --tail=100 -f
+
+# Logs PHP (dentro do container)
+tail -f /var/www/html/logs/php_errors.log
+```
+
+### Atualizar Código Sem Redeploy
+
+```bash
+# Dentro do container
+cd /var/www/html
+git pull origin main
+```
+
+Entretanto, o redeploy via Portainer é recomendado para garantir consistência.
+
+---
+
+## 🧪 Testes
+
+### Testar Ativação de Licença
+
+```bash
+curl -X POST https://api.28facil.com.br/api/license/activate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "2006AB23",
+    "purchase_code": "SEU-PURCHASE-CODE",
+    "domain": "localhost",
+    "installation_hash": "abc123"
+  }'
+```
+
+### Testar Health Check
+
+```bash
+curl https://api.28facil.com.br/health | jq
+```
+
+---
+
+## 🛡️ Segurança em Produção
+
+### Checklist de Segurança
+
+- [ ] Alterar senha padrão do admin (`admin123`)
+- [ ] Definir `JWT_SECRET` forte e único
+- [ ] Definir `DB_PASSWORD` forte
+- [ ] Configurar `APP_DEBUG=false` em produção
+- [ ] Habilitar HTTPS com certificado SSL (Let's Encrypt via Traefik)
+- [ ] Configurar backups regulares do banco PostgreSQL
+- [ ] Monitorar logs de acesso e erros
+- [ ] Implementar rate limiting por IP (futuro)
+
+### Recomendações
+
+1. **Não commitar credenciais** no repositório
+2. **Usar variáveis de ambiente** para secrets
+3. **Trocar senhas padrão** imediatamente
+4. **Fazer backups regulares** do banco de dados
+5. **Monitorar tentativas de login falhadas**
+
+---
+
+## 📞 Suporte
+
+Em caso de dúvidas ou problemas:
+
+1. Consulte o **[GUIA_LICENCIAMENTO.md](./GUIA_LICENCIAMENTO.md)**
+2. Verifique os **logs** do container
+3. Teste o **health check**: https://api.28facil.com.br/health
+4. Consulte a **documentação Swagger**: https://api.28facil.com.br/swagger/
+
+---
+
+## 📄 Licença
+
+Este projeto é proprietário e de uso restrito.
+
+© 2026 28Facil - Todos os direitos reservados.
