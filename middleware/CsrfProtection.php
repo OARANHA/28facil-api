@@ -12,11 +12,18 @@ class CsrfProtection
 {
     /**
      * Rotas que não precisam de verificação CSRF
-     * (ex: webhooks, APIs públicas)
+     * (ex: webhooks, APIs públicas, endpoints de licenciamento)
      */
     protected $except = [
         '/api/webhook/*',
-        '/api/verify-purchase-code'
+        '/api/verify-purchase-code',
+        // License API endpoints - external integrations
+        '/api/activate_license',
+        '/api/verify_license',
+        '/api/check_connection_ext',
+        '/api/latest_version',
+        '/api/check_update',
+        '/api/deactivate_license'
     ];
     
     /**
