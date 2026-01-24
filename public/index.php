@@ -106,6 +106,10 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         '/license/verify_compat',
         '/license/deactivate_compat',
         '/license/check_update',
+        // Rotas 28Pro Installer (prefixo /api)
+        '/api/license/activate',
+        '/api/license/validate', 
+        '/api/license/check',
         // Rotas LicenseBoxAPI com prefixo /api
         '/api/activate_license',
         '/api/verify_license',
@@ -219,8 +223,31 @@ try {
     }
     
     // ===========================
+    // ROTAS 28PRO INSTALLER COM PREFIXO /api/license
+    // Essas são usadas pelo instalador customizado do 28Pro
+    // ===========================
+    
+    if ($path === '/api/license/activate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->activate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/license/validate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->validate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/license/check' && $method === 'GET') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->check(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
     // ROTAS LICENSEBOXAPI COM PREFIXO /api
-    // Essas são as rotas que o instalador GoFresha/28Pro espera
+    // Essas são as rotas que o instalador GoFresha original espera
     // ===========================
     
     if ($path === '/api/check_connection_ext' && $method === 'POST') {
@@ -491,6 +518,11 @@ function healthCheck() {
             'rate_limiting' => 'client-side'
         ],
         'endpoints' => [
+            'licensing_28pro' => [
+                'validate' => ['method' => 'POST', 'path' => '/api/license/validate', 'auth' => 'public'],
+                'activate' => ['method' => 'POST', 'path' => '/api/license/activate', 'auth' => 'public'],
+                'check' => ['method' => 'GET', 'path' => '/api/license/check', 'auth' => 'public']
+            ],
             'licensing' => [
                 'validate' => ['method' => 'POST', 'path' => '/license/validate', 'auth' => 'public'],
                 'activate' => ['method' => 'POST', 'path' => '/license/activate', 'auth' => 'public'],
