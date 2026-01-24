@@ -95,8 +95,17 @@ $securityHeaders->handle(null, function() { return null; });
 
 // 2. CSRF Protection (apenas para rotas que modificam dados)
 if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
-    // Rotas que NÃO precisam de CSRF (APIs públicas)
+    // Rotas que NÃO precisam de CSRF (APIs públicas + Autenticação)
     $csrfExempt = [
+        // Autenticação - usuário ainda não tem token
+        '/auth/login',
+        '/auth/register',
+        '/api/auth/login',
+        '/api/auth/register',
+        '/csrf-token',
+        '/api/csrf-token',
+        
+        // Rotas de licenciamento público
         '/license/validate',
         '/license/activate',
         '/license/check',
@@ -106,10 +115,12 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         '/license/verify_compat',
         '/license/deactivate_compat',
         '/license/check_update',
+        
         // Rotas 28Pro Installer (prefixo /api)
         '/api/license/activate',
         '/api/license/validate', 
         '/api/license/check',
+        
         // Rotas LicenseBoxAPI com prefixo /api
         '/api/activate_license',
         '/api/verify_license',
