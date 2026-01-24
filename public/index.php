@@ -438,70 +438,70 @@ try {
     
     $isAdmin = $currentUser['role'] === 'admin';
     
-    // Dados do usuário logado
-    if ($path === '/auth/me' && $method === 'GET') {
+    // Dados do usuário logado (ambas versões: com e sem /api)
+    if (($path === '/auth/me' || $path === '/api/auth/me') && $method === 'GET') {
         $controller = new AuthController($db);
         echo json_encode($controller->me($userId), JSON_PRETTY_PRINT);
         exit;
     }
     
     // ===========================
-    // Rotas de Usuários/Clientes
+    // Rotas de Usuários/Clientes (com e sem /api)
     // ===========================
     
     $userController = new UserController($db);
     
-    if ($path === '/users' && $method === 'GET') {
+    if (($path === '/users' || $path === '/api/users') && $method === 'GET') {
         echo json_encode($userController->list($isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if ($path === '/users' && $method === 'POST') {
+    if (($path === '/users' || $path === '/api/users') && $method === 'POST') {
         echo json_encode($userController->create($isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'GET') {
+    if (preg_match('/^\/(?:api\/)?users\/(\d+)$/', $path, $matches) && $method === 'GET') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->get($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'PUT') {
+    if (preg_match('/^\/(?:api\/)?users\/(\d+)$/', $path, $matches) && $method === 'PUT') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->update($targetUserId, $userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if (preg_match('/^\/users\/(\d+)$/', $path, $matches) && $method === 'DELETE') {
+    if (preg_match('/^\/(?:api\/)?users\/(\d+)$/', $path, $matches) && $method === 'DELETE') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->delete($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if (preg_match('/^\/users\/(\d+)\/reset-password$/', $path, $matches) && $method === 'POST') {
+    if (preg_match('/^\/(?:api\/)?users\/(\d+)\/reset-password$/', $path, $matches) && $method === 'POST') {
         $targetUserId = (int)$matches[1];
         echo json_encode($userController->resetPassword($targetUserId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
     // ===========================
-    // Rotas de Licenças
+    // Rotas de Licenças (com e sem /api)
     // ===========================
     
-    if ($path === '/licenses' && $method === 'GET') {
+    if (($path === '/licenses' || $path === '/api/licenses') && $method === 'GET') {
         $controller = new LicenseController($db);
         echo json_encode($controller->list($userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if ($path === '/licenses' && $method === 'POST') {
+    if (($path === '/licenses' || $path === '/api/licenses') && $method === 'POST') {
         $controller = new LicenseController($db);
         echo json_encode($controller->create($userId, $isAdmin), JSON_PRETTY_PRINT);
         exit;
     }
     
-    if (preg_match('/^\/licenses\/(\d+)$/', $path, $matches) && $method === 'GET') {
+    if (preg_match('/^\/(?:api\/)?licenses\/(\d+)$/', $path, $matches) && $method === 'GET') {
         $licenseId = (int)$matches[1];
         $controller = new LicenseController($db);
         echo json_encode($controller->get($licenseId, $userId, $isAdmin), JSON_PRETTY_PRINT);
@@ -575,19 +575,19 @@ function healthCheck() {
                 'register' => ['method' => 'POST', 'path' => '/api/auth/register', 'auth' => 'public'],
                 'login' => ['method' => 'POST', 'path' => '/api/auth/login', 'auth' => 'public'],
                 'logout' => ['method' => 'POST', 'path' => '/api/auth/logout', 'auth' => 'public'],
-                'me' => ['method' => 'GET', 'path' => '/auth/me', 'auth' => 'bearer_token']
+                'me' => ['method' => 'GET', 'path' => '/api/auth/me', 'auth' => 'cookie_token']
             ],
             'users' => [
-                'list' => ['method' => 'GET', 'path' => '/users', 'auth' => 'bearer_token'],
-                'create' => ['method' => 'POST', 'path' => '/users', 'auth' => 'bearer_token'],
-                'get' => ['method' => 'GET', 'path' => '/users/{id}', 'auth' => 'bearer_token'],
-                'update' => ['method' => 'PUT', 'path' => '/users/{id}', 'auth' => 'bearer_token'],
-                'delete' => ['method' => 'DELETE', 'path' => '/users/{id}', 'auth' => 'bearer_token']
+                'list' => ['method' => 'GET', 'path' => '/api/users', 'auth' => 'cookie_token'],
+                'create' => ['method' => 'POST', 'path' => '/api/users', 'auth' => 'cookie_token'],
+                'get' => ['method' => 'GET', 'path' => '/api/users/{id}', 'auth' => 'cookie_token'],
+                'update' => ['method' => 'PUT', 'path' => '/api/users/{id}', 'auth' => 'cookie_token'],
+                'delete' => ['method' => 'DELETE', 'path' => '/api/users/{id}', 'auth' => 'cookie_token']
             ],
             'licenses_mgmt' => [
-                'list' => ['method' => 'GET', 'path' => '/licenses', 'auth' => 'bearer_token'],
-                'create' => ['method' => 'POST', 'path' => '/licenses', 'auth' => 'bearer_token'],
-                'get' => ['method' => 'GET', 'path' => '/licenses/{id}', 'auth' => 'bearer_token']
+                'list' => ['method' => 'GET', 'path' => '/api/licenses', 'auth' => 'cookie_token'],
+                'create' => ['method' => 'POST', 'path' => '/api/licenses', 'auth' => 'cookie_token'],
+                'get' => ['method' => 'GET', 'path' => '/api/licenses/{id}', 'auth' => 'cookie_token']
             ]
         ]
     ];
