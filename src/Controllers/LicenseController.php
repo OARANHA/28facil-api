@@ -366,14 +366,26 @@ class LicenseController
 
     /**
      * POST /api/check_connection_ext
-     * Verifica conexão com a API
+     * Verifica conexão com a API e banco de dados
      */
-    public function checkConnectionExt($request, $response)
+    public function checkConnectionExt()
     {
-        return [
-            'status' => true,
-            'message' => 'Connection successful'
-        ];
+        try {
+            // Testar conexão com o banco
+            $this->db->query('SELECT 1');
+            
+            return [
+                'status' => true,
+                'message' => 'Connection successful',
+                'server_time' => date('Y-m-d H:i:s')
+            ];
+        } catch (\Exception $e) {
+            http_response_code(500);
+            return [
+                'status' => false,
+                'message' => 'Database connection failed'
+            ];
+        }
     }
 
     /**
@@ -382,7 +394,7 @@ class LicenseController
      * 
      * Payload esperado: {"product_id": "2006AB23"}
      */
-    public function latestVersion($request, $response)
+    public function latestVersion()
     {
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -396,11 +408,13 @@ class LicenseController
             ];
         }
         
-        // Retornar versão atual do produto
+        // Buscar versão do produto (product_id mapeia para product_name)
+        // Por enquanto retornando versão estática, mas você pode criar tabela 'products'
         return [
             'status' => true,
-            'current_version' => 'v2.0.0',
-            'latest_version' => 'v2.0.0',
+            'product_id' => $productId,
+            'current_version' => 'v2.1.0',
+            'latest_version' => 'v2.1.0',
             'changelog' => 'Sistema de licenciamento migrado para 28Facil API',
             'update_available' => false
         ];
@@ -408,16 +422,16 @@ class LicenseController
 
     /**
      * POST /api/activate_license
-     * Ativa uma licença para um cliente
+     * Ativa uma licença para um cliente (compatibilidade LicenseBox)
      * 
      * Payload esperado: {
      *   "product_id": "2006AB23",
-     *   "license_code": "XXXX-XXXX-XXXX",
+     *   "license_code": "XXXX-XXXX-XXXX-XXXX",
      *   "client_name": "Nome do Cliente",
      *   "verify_type": "envato"
      * }
      */
-    public function activateLicenseCompat($request, $response)
+    public function activateLicenseCompat()
     {
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -434,37 +448,125 @@ class LicenseController
             ];
         }
         
-        // Gerar um "license file" content (base64 do JSON com dados da licença)
-        $licenseData = [
-            'product_id' => $productId,
-            'license_code' => $licenseCode,
-            'client_name' => $clientName,
-            'activated_at' => date('Y-m-d H:i:s'),
-            'expires_at' => date('Y-m-d H:i:s', strtotime('+1 year')),
-            'signature' => hash('sha256', $productId . $licenseCode . $clientName . 'salt28facil')
-        ];
-        
-        $licenseFileContent = base64_encode(json_encode($licenseData));
-        
-        return [
-            'status' => true,
-            'message' => 'Licença ativada com sucesso',
-            'lic_response' => $licenseFileContent
-        ];
+        try {
+            // Buscar licença pelo purchase_code (license_code)
+            $stmt = $this->db->prepare("
+                SELECT id, uuid, product_name, license_type, status, max_activations, expires_at,
+                       (SELECT COUNT(*) FROM license_activations WHERE license_id = id AND status = 'active') as active_activations
+                FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $licenseCode]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                http_response_code(404);
+                return [
+                    'status' => false,
+                    'message' => 'Código de licença inválido ou não encontrado'
+                ];
+            }
+            
+            // Verificar se licença está ativa
+            if ($license['status'] !== 'active') {
+                http_response_code(403);
+                return [
+                    'status' => false,
+                    'message' => 'Licença suspensa ou inativa. Entre em contato com o suporte.'
+                ];
+            }
+            
+            // Verificar expiração
+            if ($license['expires_at'] && strtotime($license['expires_at']) < time()) {
+                http_response_code(403);
+                return [
+                    'status' => false,
+                    'message' => 'Licença expirada em ' . date('d/m/Y', strtotime($license['expires_at']))
+                ];
+            }
+            
+            // Verificar limite de ativações
+            if ($license['active_activations'] >= $license['max_activations']) {
+                http_response_code(403);
+                return [
+                    'status' => false,
+                    'message' => 'Limite de ativações atingido (' . $license['max_activations'] . ' máximo)'
+                ];
+            }
+            
+            // Criar ativação
+            $uuid = $this->generateUUID();
+            $licenseKey = $this->generateLicenseKey();
+            $serverIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'LicenseBoxAPI';
+            
+            $metadata = json_encode([
+                'product_id' => $productId,
+                'client_name' => $clientName,
+                'verify_type' => $verifyType,
+                'activated_via' => 'licensebox_compat'
+            ]);
+            
+            $activateStmt = $this->db->prepare("
+                INSERT INTO license_activations (
+                    uuid, license_id, license_key, domain, installation_hash, 
+                    installation_name, server_ip, user_agent, metadata
+                ) VALUES (:uuid, :license_id, :license_key, :domain, :installation_hash, 
+                          :installation_name, :server_ip, :user_agent, :metadata)
+            ");
+            
+            $result = $activateStmt->execute([
+                'uuid' => $uuid,
+                'license_id' => $license['id'],
+                'license_key' => $licenseKey,
+                'domain' => $clientName, // Usar client_name como "domínio" temporário
+                'installation_hash' => hash('sha256', $clientName . $productId . time()),
+                'installation_name' => $clientName,
+                'server_ip' => $serverIp,
+                'user_agent' => $userAgent,
+                'metadata' => $metadata
+            ]);
+            
+            if (!$result) {
+                throw new \Exception('Erro ao criar ativação no banco de dados');
+            }
+            
+            // Gerar "license file" content (formato LicenseBox)
+            $licenseData = [
+                'product_id' => $productId,
+                'license_code' => $licenseCode,
+                'license_key' => $licenseKey,
+                'client_name' => $clientName,
+                'activated_at' => date('Y-m-d H:i:s'),
+                'expires_at' => $license['expires_at'] ?? date('Y-m-d H:i:s', strtotime('+10 years')),
+                'license_type' => $license['license_type'],
+                'signature' => hash('sha256', $productId . $licenseCode . $clientName . '28facil_salt')
+            ];
+            
+            $licenseFileContent = base64_encode(json_encode($licenseData));
+            
+            return [
+                'status' => true,
+                'message' => 'Licença ativada com sucesso!',
+                'lic_response' => $licenseFileContent
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('LicenseBoxAPI activate error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'status' => false,
+                'message' => 'Erro interno ao ativar licença. Contate o suporte.',
+                'debug' => getenv('APP_DEBUG') === 'true' ? $e->getMessage() : null
+            ];
+        }
     }
 
     /**
      * POST /api/verify_license
      * Verifica se uma licença é válida
-     * 
-     * Payload esperado: {
-     *   "product_id": "2006AB23",
-     *   "license_file": "base64_content" OU
-     *   "license_code": "XXXX-XXXX-XXXX",
-     *   "client_name": "Nome do Cliente"
-     * }
      */
-    public function verifyLicenseCompat($request, $response)
+    public function verifyLicenseCompat()
     {
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -481,98 +583,157 @@ class LicenseController
             ];
         }
         
-        // Verificar via license_file (base64) OU via license_code+client_name
-        if ($licenseFile) {
-            try {
+        try {
+            // Verificar via license_file (base64) OU via license_code
+            if ($licenseFile) {
                 $licenseData = json_decode(base64_decode($licenseFile), true);
                 
                 if (!$licenseData || $licenseData['product_id'] !== $productId) {
                     return [
                         'status' => false,
-                        'message' => 'Licença inválida ou expirada'
+                        'message' => 'Licença inválida ou produto incorreto'
                     ];
                 }
                 
-                // Verificar expiração
-                if (isset($licenseData['expires_at']) && strtotime($licenseData['expires_at']) < time()) {
-                    return [
-                        'status' => false,
-                        'message' => 'Licença expirada'
-                    ];
-                }
-                
-                return [
-                    'status' => true,
-                    'message' => 'Verified! Thanks for purchasing.'
-                ];
-                
-            } catch (Exception $e) {
+                $licenseCode = $licenseData['license_code'] ?? null;
+            }
+            
+            if (!$licenseCode) {
+                http_response_code(400);
                 return [
                     'status' => false,
-                    'message' => 'Erro ao processar licença'
+                    'message' => 'license_code ou license_file é obrigatório'
                 ];
             }
-        }
-        
-        // Verificar via license_code + client_name
-        if ($licenseCode && $clientName) {
-            // Aqui você pode integrar com seu sistema de validação de purchase codes
-            // Por enquanto, aceitar qualquer código para compatibilidade
+            
+            // Buscar licença no banco
+            $stmt = $this->db->prepare("
+                SELECT id, status, expires_at, license_type
+                FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $licenseCode]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                return [
+                    'status' => false,
+                    'message' => 'Licença não encontrada'
+                ];
+            }
+            
+            // Verificar status
+            if ($license['status'] !== 'active') {
+                return [
+                    'status' => false,
+                    'message' => 'Licença suspensa ou inativa'
+                ];
+            }
+            
+            // Verificar expiração
+            if ($license['expires_at'] && strtotime($license['expires_at']) < time()) {
+                return [
+                    'status' => false,
+                    'message' => 'Licença expirada'
+                ];
+            }
+            
             return [
                 'status' => true,
-                'message' => 'Verified! Thanks for purchasing.'
+                'message' => 'Verified! Thanks for purchasing.',
+                'license_type' => $license['license_type']
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('LicenseBoxAPI verify error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'status' => false,
+                'message' => 'Erro ao processar licença'
             ];
         }
-        
-        return [
-            'status' => false,
-            'message' => 'Dados insuficientes para verificação'
-        ];
     }
 
     /**
      * POST /api/deactivate_license
      * Desativa uma licença
-     * 
-     * Payload esperado: {
-     *   "product_id": "2006AB23",
-     *   "license_file": "base64_content" OU
-     *   "license_code": "XXXX-XXXX-XXXX",
-     *   "client_name": "Nome do Cliente"
-     * }
      */
-    public function deactivateLicenseCompat($request, $response)
+    public function deactivateLicenseCompat()
     {
         $input = json_decode(file_get_contents('php://input'), true);
         
         $productId = $input['product_id'] ?? null;
+        $licenseCode = $input['license_code'] ?? null;
+        $clientName = $input['client_name'] ?? null;
         
-        if (!$productId) {
+        if (!$productId || !$licenseCode) {
             http_response_code(400);
             return [
                 'status' => false,
-                'message' => 'product_id é obrigatório'
+                'message' => 'product_id e license_code são obrigatórios'
             ];
         }
         
-        // Por enquanto, apenas retornar sucesso
-        // Aqui você pode implementar lógica de desativação no seu banco
-        return [
-            'status' => true,
-            'message' => 'Licença desativada com sucesso'
-        ];
+        try {
+            // Buscar licença
+            $stmt = $this->db->prepare("
+                SELECT id FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $licenseCode]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                http_response_code(404);
+                return [
+                    'status' => false,
+                    'message' => 'Licença não encontrada'
+                ];
+            }
+            
+            // Desativar todas as ativações desta licença (ou apenas do cliente específico)
+            if ($clientName) {
+                $deactivateStmt = $this->db->prepare("
+                    UPDATE license_activations
+                    SET status = 'inactive', deactivated_at = NOW()
+                    WHERE license_id = :license_id 
+                      AND installation_name = :client_name
+                      AND status = 'active'
+                ");
+                $deactivateStmt->execute([
+                    'license_id' => $license['id'],
+                    'client_name' => $clientName
+                ]);
+            } else {
+                // Desativar todas
+                $deactivateStmt = $this->db->prepare("
+                    UPDATE license_activations
+                    SET status = 'inactive', deactivated_at = NOW()
+                    WHERE license_id = :license_id AND status = 'active'
+                ");
+                $deactivateStmt->execute(['license_id' => $license['id']]);
+            }
+            
+            return [
+                'status' => true,
+                'message' => 'Licença desativada com sucesso'
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('LicenseBoxAPI deactivate error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'status' => false,
+                'message' => 'Erro ao desativar licença'
+            ];
+        }
     }
 
     /**
      * POST /api/check_update
      * Verifica se há atualizações disponíveis
-     * 
-     * Payload esperado: {
-     *   "product_id": "2006AB23",
-     *   "current_version": "v1.0.0"
-     * }
      */
-    public function checkUpdate($request, $response)
+    public function checkUpdate()
     {
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -587,13 +748,17 @@ class LicenseController
             ];
         }
         
-        // Retornar que não há atualizações por enquanto
+        // Retornar informações de versão
+        // Você pode criar uma tabela 'product_versions' para gerenciar isso
         return [
             'status' => true,
+            'product_id' => $productId,
             'current_version' => $currentVersion,
-            'latest_version' => 'v2.0.0',
-            'update_available' => false,
-            'message' => 'Sistema atualizado. Nenhuma atualização disponível no momento.'
+            'latest_version' => 'v2.1.0',
+            'update_available' => version_compare('v2.1.0', $currentVersion, '>'),
+            'update_url' => null,
+            'changelog' => 'Migração completa para 28Facil API com suporte a LicenseBoxAPI',
+            'message' => 'Sistema atualizado'
         ];
     }
 }
