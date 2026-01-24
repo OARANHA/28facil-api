@@ -201,8 +201,8 @@ class LicenseController
     }
     
     /**
-     * POST /license/activate
-     * Ativar licença em domínio
+     * POST /api/license/activate
+     * Ativar licença em domínio (usado pelo lb_helper.php)
      */
     public function activate()
     {
@@ -215,12 +215,15 @@ class LicenseController
         
         if (empty($purchaseCode) || empty($domain) || empty($installationHash)) {
             http_response_code(400);
-            return ['error' => 'Purchase code, domain e installation_hash são obrigatórios'];
+            return [
+                'success' => false,
+                'error' => 'Purchase code, domain e installation_hash são obrigatórios'
+            ];
         }
         
         // Buscar licença
         $stmt = $this->db->prepare("
-            SELECT id, max_activations,
+            SELECT id, uuid, purchase_code, license_type, max_activations, expires_at,
                    (SELECT COUNT(*) FROM license_activations WHERE license_id = id AND status = 'active') as active_activations
             FROM licenses
             WHERE purchase_code = :purchase_code AND status = 'active'
@@ -230,13 +233,19 @@ class LicenseController
         
         if (!$license) {
             http_response_code(404);
-            return ['error' => 'Licença não encontrada ou inativa'];
+            return [
+                'success' => false,
+                'error' => 'Licença não encontrada ou inativa'
+            ];
         }
         
         // Verificar limite de ativações
         if ($license['active_activations'] >= $license['max_activations']) {
             http_response_code(403);
-            return ['error' => 'Limite de ativações atingido'];
+            return [
+                'success' => false,
+                'error' => 'Limite de ativações atingido'
+            ];
         }
         
         // Criar ativação
@@ -252,6 +261,7 @@ class LicenseController
                 installation_name, server_ip, user_agent, metadata
             ) VALUES (:uuid, :license_id, :license_key, :domain, :installation_hash, 
                       :installation_name, :server_ip, :user_agent, :metadata)
+            RETURNING id
         ");
         
         $result = $activateStmt->execute([
@@ -267,18 +277,205 @@ class LicenseController
         ]);
         
         if ($result) {
+            // Retornar formato compatível com lb_helper.php
             return [
                 'success' => true,
                 'activated' => true,
                 'license_key' => $licenseKey,
+                'purchase_code' => $purchaseCode,
+                'license_type' => $license['license_type'],
+                'expires_at' => $license['expires_at'],
                 'message' => 'Licença ativada com sucesso'
             ];
         }
         
         http_response_code(500);
-        return ['error' => 'Erro ao ativar licença'];
+        return [
+            'success' => false,
+            'error' => 'Erro ao ativar licença'
+        ];
     }
     
+    /**
+     * POST /api/license/verify
+     * Verificar licença (usado pelo lb_helper.php)
+     */
+    public function verifyLicense()
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $purchaseCode = $input['purchase_code'] ?? '';
+        $domain = $input['domain'] ?? '';
+        $installationHash = $input['installation_hash'] ?? '';
+        
+        if (empty($purchaseCode)) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'message' => 'Purchase code é obrigatório'
+            ];
+        }
+        
+        try {
+            // Buscar licença
+            $stmt = $this->db->prepare("
+                SELECT id, status, expires_at, license_type
+                FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $purchaseCode]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                return [
+                    'success' => false,
+                    'message' => 'Licença não encontrada'
+                ];
+            }
+            
+            // Verificar status
+            if ($license['status'] !== 'active') {
+                return [
+                    'success' => false,
+                    'message' => 'Licença suspensa ou inativa'
+                ];
+            }
+            
+            // Verificar expiração
+            if ($license['expires_at'] && strtotime($license['expires_at']) < time()) {
+                return [
+                    'success' => false,
+                    'message' => 'Licença expirada'
+                ];
+            }
+            
+            // Se passou domain/installation_hash, verificar ativação específica
+            if (!empty($domain) && !empty($installationHash)) {
+                $activationStmt = $this->db->prepare("
+                    SELECT id, license_key
+                    FROM license_activations
+                    WHERE license_id = :license_id 
+                      AND domain = :domain
+                      AND installation_hash = :installation_hash
+                      AND status = 'active'
+                    LIMIT 1
+                ");
+                $activationStmt->execute([
+                    'license_id' => $license['id'],
+                    'domain' => $domain,
+                    'installation_hash' => $installationHash
+                ]);
+                $activation = $activationStmt->fetch();
+                
+                if (!$activation) {
+                    return [
+                        'success' => false,
+                        'message' => 'Ativação não encontrada para este domínio'
+                    ];
+                }
+                
+                // Atualizar last_check
+                $updateStmt = $this->db->prepare("
+                    UPDATE license_activations 
+                    SET last_check_at = NOW(), check_count = check_count + 1
+                    WHERE id = :id
+                ");
+                $updateStmt->execute(['id' => $activation['id']]);
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'Verified! Thanks for purchasing.',
+                'license_type' => $license['license_type']
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('License verify error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'message' => 'Erro ao verificar licença'
+            ];
+        }
+    }
+    
+    /**
+     * POST /api/license/deactivate
+     * Desativar licença (usado pelo lb_helper.php)
+     */
+    public function deactivateLicense()
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $purchaseCode = $input['purchase_code'] ?? '';
+        $domain = $input['domain'] ?? '';
+        $installationHash = $input['installation_hash'] ?? '';
+        
+        if (empty($purchaseCode)) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'message' => 'Purchase code é obrigatório'
+            ];
+        }
+        
+        try {
+            // Buscar licença
+            $stmt = $this->db->prepare("
+                SELECT id FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $purchaseCode]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'message' => 'Licença não encontrada'
+                ];
+            }
+            
+            // Se passou domain/installation_hash, desativar apenas essa ativação
+            if (!empty($domain) && !empty($installationHash)) {
+                $deactivateStmt = $this->db->prepare("
+                    UPDATE license_activations
+                    SET status = 'inactive', deactivated_at = NOW()
+                    WHERE license_id = :license_id 
+                      AND domain = :domain
+                      AND installation_hash = :installation_hash
+                      AND status = 'active'
+                ");
+                $deactivateStmt->execute([
+                    'license_id' => $license['id'],
+                    'domain' => $domain,
+                    'installation_hash' => $installationHash
+                ]);
+            } else {
+                // Desativar todas as ativações
+                $deactivateStmt = $this->db->prepare("
+                    UPDATE license_activations
+                    SET status = 'inactive', deactivated_at = NOW()
+                    WHERE license_id = :license_id AND status = 'active'
+                ");
+                $deactivateStmt->execute(['license_id' => $license['id']]);
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'Licença desativada com sucesso'
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('License deactivate error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'message' => 'Erro ao desativar licença'
+            ];
+        }
+    }
+
     /**
      * GET /license/check
      * Verificar status da licença (health check)
