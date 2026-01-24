@@ -8,12 +8,61 @@ Guia completo para diagnosticar e resolver problemas de autenticação no portal
 
 - ❌ Login falha com credenciais corretas
 - ❌ Mensagem "Email ou senha incorretos"
+- ❌ Erro "Token CSRF inválido ou expirado" (HTTP 419/500)
 - ❌ Página recarrega mas não autentica
 - ❌ Cookie não está sendo definido
 
 ---
 
-## ⚙️ Solução Rápida
+## ⚡ SOLUÇÃO RÁPIDA - CSRF Token Mismatch
+
+### 🔴 Problema Identificado
+
+Se você recebe este erro:
+```json
+{"success":false,"error":"Token CSRF inválido ou expirado","code":"CSRF_TOKEN_MISMATCH"}
+```
+
+**Causa:** O middleware CSRF estava bloqueando o endpoint `/api/auth/login`.
+
+**Solução:** Já corrigido! Basta fazer **redeploy**:
+
+```bash
+# No Portainer:
+1. Vá em Stacks > 28facil-api
+2. Clique em "Redeploy from git repository"
+3. Aguarde rebuild completo
+4. Teste novamente
+```
+
+**Ou via SSH:**
+```bash
+# Puxar atualizações
+cd /caminho/do/projeto
+git pull origin main
+
+# Rebuild do container
+docker-compose down
+docker-compose up -d --build
+```
+
+### ✅ Verificação Pós-Correção
+
+```bash
+curl -X POST https://api.28facil.com.br/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@28facil.com.br","password":"admin123"}' \
+  -v
+```
+
+**Resposta esperada:**
+- ✅ HTTP 200 OK (antes: HTTP 500)
+- ✅ `{"success":true, ...}`
+- ✅ Cookie `28facil_token` definido
+
+---
+
+## ⚙️ Outras Soluções
 
 ### Opção 1: Redeploy no Portainer (✅ Recomendado)
 
@@ -33,7 +82,7 @@ Senha: admin123
 
 ### Opção 2: Script de Diagnóstico
 
-Se o redeploy não resolver, execute o script de diagnóstico:
+Se o problema persistir, execute o script de diagnóstico:
 
 ```bash
 # Acessar o container
@@ -80,6 +129,7 @@ curl -X POST https://api.28facil.com.br/api/auth/login \
 - ✅ JSON com `success: true`
 - ❌ Se HTTP 401: senha incorreta
 - ❌ Se HTTP 403: usuário inativo
+- ❌ Se HTTP 419/500 + CSRF_TOKEN_MISMATCH: faça redeploy
 
 ### 3️⃣ Verificar Banco de Dados
 
@@ -110,6 +160,7 @@ SELECT substring(password_hash, 1, 30) FROM users WHERE email = 'admin@28facil.c
    - **Response**: `{"success": true, ...}`
 
 **Possíveis problemas:**
+- 🔴 **CSRF Token Mismatch**: Faça redeploy para atualizar middleware
 - 🔴 **CORS**: Headers não permitidos
 - 🔴 **Cookie bloqueado**: SameSite ou Secure incorreto
 - 🔴 **Domínio errado**: Cookie não enviado para subdomínio
@@ -255,6 +306,7 @@ curl https://api.28facil.com.br/health | jq
 - [ ] Usuário admin existe no banco
 - [ ] Usuário admin está com status `active`
 - [ ] Hash de senha está correto (bcrypt)
+- [ ] Middleware CSRF atualizado (sem bloquear /api/auth/login)
 - [ ] Endpoint `/api/auth/login` retorna HTTP 200
 - [ ] Cookie `28facil_token` está sendo definido
 - [ ] HTTPS está funcionando (certificado válido)
@@ -264,6 +316,16 @@ curl https://api.28facil.com.br/health | jq
 ---
 
 ## 🆘 Perguntas Frequentes
+
+### P: Erro "Token CSRF inválido ou expirado"
+
+**R:** Middleware CSRF estava bloqueando login. Solução:
+```bash
+# Faça redeploy no Portainer para puxar atualização
+# Ou manualmente:
+git pull origin main
+docker-compose up -d --build
+```
 
 ### P: A senha padrão não funciona após redeploy
 
@@ -297,6 +359,15 @@ Commit, push e faça redeploy.
 
 ---
 
+## 🔧 Histórico de Correções
+
+### v1.1.0 - 24/01/2026
+- ✅ **Corrigido:** CSRF Token Mismatch bloqueando `/api/auth/login`
+- ✅ Adicionadas rotas de autenticação às exceções do middleware CSRF
+- ✅ Script `fix-login.php` criado para diagnóstico automático
+
+---
+
 ## 🐞 Reportar Bugs
 
 Se o problema persistir:
@@ -315,6 +386,7 @@ Se o problema persistir:
 - [GUIA_LICENCIAMENTO.md](./GUIA_LICENCIAMENTO.md) - Guia de licenciamento
 - [DEPLOY.md](./DEPLOY.md) - Guia de deploy
 - [AuthController.php](./src/Controllers/AuthController.php) - Código de autenticação
+- [CsrfProtection.php](./middleware/CsrfProtection.php) - Middleware CSRF
 
 ---
 
