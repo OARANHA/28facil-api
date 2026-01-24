@@ -149,16 +149,18 @@ class AuthController
     public function logout()
     {
         // Limpar cookie setando valor vazio e expiração no passado
+        $domain = $this->getCookieDomain();
+        
         setcookie(
             '28facil_token',
             '',
             [
                 'expires' => time() - 3600,
                 'path' => '/',
-                'domain' => '',
+                'domain' => $domain,
                 'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
                 'httponly' => true,
-                'samesite' => 'Strict'
+                'samesite' => 'Lax'
             ]
         );
         
@@ -195,11 +197,30 @@ class AuthController
     }
     
     /**
+     * Obtém domínio correto para o cookie
+     * Se for 28facil.com.br ou subdomínios, usar .28facil.com.br
+     * Caso contrário (localhost, IP), deixar vazio
+     */
+    private function getCookieDomain()
+    {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        
+        // Se for 28facil.com.br ou qualquer subdomínio, usar domínio base
+        if (strpos($host, '28facil.com.br') !== false) {
+            return '.28facil.com.br';
+        }
+        
+        // Para localhost, dev, etc, não definir domínio
+        return '';
+    }
+    
+    /**
      * Definir cookie httpOnly seguro com JWT
      */
     private function setSecureCookie($token)
     {
         $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+        $domain = $this->getCookieDomain();
         
         setcookie(
             '28facil_token',
@@ -207,10 +228,10 @@ class AuthController
             [
                 'expires' => time() + (86400 * 7),  // 7 dias
                 'path' => '/',
-                'domain' => '',
+                'domain' => $domain,
                 'secure' => $isSecure,
                 'httponly' => true,
-                'samesite' => 'Strict'
+                'samesite' => 'Lax'  // Mudado de Strict para Lax para permitir navegação
             ]
         );
     }
