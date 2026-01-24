@@ -67,12 +67,12 @@ use Middleware\CsrfProtection;
 // ===========================================
 
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
-$path = parse_url($requestUri, PHP_URL_PATH);
-$path = preg_replace('/^\/api/', '', $path);
+$originalPath = parse_url($requestUri, PHP_URL_PATH);
+$path = $originalPath;  // Manter path original (com /api se vier)
 $method = $_SERVER['REQUEST_METHOD'];
 
 // API Spec - DEVE SER PÚBLICO para Swagger
-if ($path === '/api.json') {
+if ($path === '/api.json' || $path === '/api/api.json') {
     header('Content-Type: application/json');
     $specPath = __DIR__ . '/../api.json';
     
@@ -105,7 +105,14 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         '/license/activate_compat',
         '/license/verify_compat',
         '/license/deactivate_compat',
-        '/license/check_update'
+        '/license/check_update',
+        // Rotas LicenseBoxAPI com prefixo /api
+        '/api/activate_license',
+        '/api/verify_license',
+        '/api/deactivate_license',
+        '/api/check_connection_ext',
+        '/api/latest_version',
+        '/api/check_update'
     ];
     
     if (!in_array($path, $csrfExempt)) {
@@ -194,13 +201,13 @@ function getAuthorizationHeader() {
 
 try {
     // Health Check (público)
-    if ($path === '/' || $path === '/health') {
+    if ($path === '/' || $path === '/health' || $path === '/api' || $path === '/api/') {
         healthCheck();
         exit;
     }
     
     // CSRF Token endpoint (público)
-    if ($path === '/csrf-token' && $method === 'GET') {
+    if (($path === '/csrf-token' || $path === '/api/csrf-token') && $method === 'GET') {
         if (!isset($_SESSION['_token'])) {
             $_SESSION['_token'] = bin2hex(random_bytes(32));
         }
@@ -212,7 +219,48 @@ try {
     }
     
     // ===========================
-    // Rotas Públicas de Licenciamento
+    // ROTAS LICENSEBOXAPI COM PREFIXO /api
+    // Essas são as rotas que o instalador GoFresha/28Pro espera
+    // ===========================
+    
+    if ($path === '/api/check_connection_ext' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->checkConnectionExt(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/latest_version' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->latestVersion(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/activate_license' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->activateLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/verify_license' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->verifyLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/deactivate_license' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->deactivateLicenseCompat(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    if ($path === '/api/check_update' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->checkUpdate(), JSON_PRETTY_PRINT);
+        exit;
+    }
+    
+    // ===========================
+    // Rotas Públicas de Licenciamento (SEM prefixo /api)
     // ===========================
     
     if ($path === '/license/validate' && $method === 'POST') {
@@ -234,7 +282,7 @@ try {
     }
     
     // ===========================
-    // LicenseBoxAPI Compatibility Routes
+    // LicenseBoxAPI Compatibility Routes (versão alternativa sem /api)
     // ===========================
     
     if ($path === '/license/check_connection_ext' && $method === 'POST') {
@@ -449,12 +497,12 @@ function healthCheck() {
                 'check' => ['method' => 'GET', 'path' => '/license/check', 'auth' => 'public']
             ],
             'licensebox_compat' => [
-                'check_connection' => ['method' => 'POST', 'path' => '/license/check_connection_ext', 'auth' => 'LB-API-KEY'],
-                'latest_version' => ['method' => 'POST', 'path' => '/license/latest_version', 'auth' => 'LB-API-KEY'],
-                'activate_license' => ['method' => 'POST', 'path' => '/license/activate_compat', 'auth' => 'LB-API-KEY'],
-                'verify_license' => ['method' => 'POST', 'path' => '/license/verify_compat', 'auth' => 'LB-API-KEY'],
-                'deactivate_license' => ['method' => 'POST', 'path' => '/license/deactivate_compat', 'auth' => 'LB-API-KEY'],
-                'check_update' => ['method' => 'POST', 'path' => '/license/check_update', 'auth' => 'LB-API-KEY']
+                'check_connection' => ['method' => 'POST', 'path' => '/api/check_connection_ext', 'auth' => 'LB-API-KEY'],
+                'latest_version' => ['method' => 'POST', 'path' => '/api/latest_version', 'auth' => 'LB-API-KEY'],
+                'activate_license' => ['method' => 'POST', 'path' => '/api/activate_license', 'auth' => 'LB-API-KEY'],
+                'verify_license' => ['method' => 'POST', 'path' => '/api/verify_license', 'auth' => 'LB-API-KEY'],
+                'deactivate_license' => ['method' => 'POST', 'path' => '/api/deactivate_license', 'auth' => 'LB-API-KEY'],
+                'check_update' => ['method' => 'POST', 'path' => '/api/check_update', 'auth' => 'LB-API-KEY']
             ],
             'auth' => [
                 'register' => ['method' => 'POST', 'path' => '/auth/register', 'auth' => 'public'],
