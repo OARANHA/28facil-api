@@ -40,6 +40,16 @@ else
     echo "⚠️  Nenhuma migration encontrada em /var/www/html/database/migrations_postgres/"
 fi
 
+# Resetar senha do admin automaticamente
+echo ""
+echo "🔐 Resetando senha do admin..."
+if [ -f "/var/www/html/scripts/reset-admin.php" ]; then
+    php /var/www/html/scripts/reset-admin.php
+    echo "✅ Senha do admin resetada!"
+else
+    echo "⚠️  Script de reset não encontrado em /var/www/html/scripts/reset-admin.php"
+fi
+
 # Criar diretório de logs se não existir
 mkdir -p /var/www/html/logs
 chmod 777 /var/www/html/logs
@@ -47,6 +57,16 @@ chmod 777 /var/www/html/logs
 # Ajustar permissões
 chown -R www-data:www-data /var/www/html
 chmod -R 755 /var/www/html
+
+echo ""
+echo "================================"
+echo "✅ 28Facil API iniciada com sucesso!"
+echo "================================"
+echo "Portal: https://api.28facil.com.br/portal/"
+echo "Admin: admin@28facil.com.br"
+echo "Senha: admin123"
+echo "================================"
+echo ""
 
 echo "🌐 Iniciando Apache..."
 exec apache2-foreground
