@@ -217,6 +217,7 @@ class LicenseController
             http_response_code(400);
             return [
                 'success' => false,
+                'status' => false,
                 'error' => 'Purchase code, domain e installation_hash são obrigatórios'
             ];
         }
@@ -235,6 +236,7 @@ class LicenseController
             http_response_code(404);
             return [
                 'success' => false,
+                'status' => false,
                 'error' => 'Licença não encontrada ou inativa'
             ];
         }
@@ -244,6 +246,7 @@ class LicenseController
             http_response_code(403);
             return [
                 'success' => false,
+                'status' => false,
                 'error' => 'Limite de ativações atingido'
             ];
         }
@@ -277,9 +280,10 @@ class LicenseController
         ]);
         
         if ($result) {
-            // Retornar formato compatível com lb_helper.php
+            // Retornar formato compatível com lb_helper.php E JavaScript do instalador
             return [
                 'success' => true,
+                'status' => true,  // ← Campo necessário para o JavaScript do instalador
                 'activated' => true,
                 'license_key' => $licenseKey,
                 'purchase_code' => $purchaseCode,
@@ -292,6 +296,7 @@ class LicenseController
         http_response_code(500);
         return [
             'success' => false,
+            'status' => false,
             'error' => 'Erro ao ativar licença'
         ];
     }
@@ -312,6 +317,7 @@ class LicenseController
             http_response_code(400);
             return [
                 'success' => false,
+                'status' => false,
                 'message' => 'Purchase code é obrigatório'
             ];
         }
@@ -329,6 +335,7 @@ class LicenseController
             if (!$license) {
                 return [
                     'success' => false,
+                    'status' => false,
                     'message' => 'Licença não encontrada'
                 ];
             }
@@ -337,6 +344,7 @@ class LicenseController
             if ($license['status'] !== 'active') {
                 return [
                     'success' => false,
+                    'status' => false,
                     'message' => 'Licença suspensa ou inativa'
                 ];
             }
@@ -345,6 +353,7 @@ class LicenseController
             if ($license['expires_at'] && strtotime($license['expires_at']) < time()) {
                 return [
                     'success' => false,
+                    'status' => false,
                     'message' => 'Licença expirada'
                 ];
             }
@@ -370,6 +379,7 @@ class LicenseController
                 if (!$activation) {
                     return [
                         'success' => false,
+                        'status' => false,
                         'message' => 'Ativação não encontrada para este domínio'
                     ];
                 }
@@ -385,6 +395,7 @@ class LicenseController
             
             return [
                 'success' => true,
+                'status' => true,  // ← Campo necessário para o JavaScript do instalador
                 'message' => 'Verified! Thanks for purchasing.',
                 'license_type' => $license['license_type']
             ];
@@ -394,6 +405,7 @@ class LicenseController
             http_response_code(500);
             return [
                 'success' => false,
+                'status' => false,
                 'message' => 'Erro ao verificar licença'
             ];
         }
@@ -415,6 +427,7 @@ class LicenseController
             http_response_code(400);
             return [
                 'success' => false,
+                'status' => false,
                 'message' => 'Purchase code é obrigatório'
             ];
         }
@@ -432,6 +445,7 @@ class LicenseController
                 http_response_code(404);
                 return [
                     'success' => false,
+                    'status' => false,
                     'message' => 'Licença não encontrada'
                 ];
             }
@@ -463,6 +477,7 @@ class LicenseController
             
             return [
                 'success' => true,
+                'status' => true,
                 'message' => 'Licença desativada com sucesso'
             ];
             
@@ -471,6 +486,7 @@ class LicenseController
             http_response_code(500);
             return [
                 'success' => false,
+                'status' => false,
                 'message' => 'Erro ao desativar licença'
             ];
         }
