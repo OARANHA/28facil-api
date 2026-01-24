@@ -12,18 +12,30 @@ class CsrfProtection
 {
     /**
      * Rotas que não precisam de verificação CSRF
-     * (ex: webhooks, APIs públicas, endpoints de licenciamento)
+     * (ex: webhooks, APIs públicas, endpoints de licenciamento, autenticação inicial)
      */
     protected $except = [
+        // Authentication endpoints - usuário ainda não tem token
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/csrf-token',
+        
+        // Webhooks
         '/api/webhook/*',
         '/api/verify-purchase-code',
+        
         // License API endpoints - external integrations
         '/api/activate_license',
         '/api/verify_license',
         '/api/check_connection_ext',
         '/api/latest_version',
         '/api/check_update',
-        '/api/deactivate_license'
+        '/api/deactivate_license',
+        
+        // 28Pro Installer endpoints
+        '/api/license/activate',
+        '/api/license/validate',
+        '/api/license/check'
     ];
     
     /**
