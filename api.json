@@ -223,7 +223,7 @@
                   "product_id": { "type": "string" },
                   "license_code": { "type": "string" },
                   "client_name": { "type": "string" },
-                  "verify_type": { "type": "string", "default": "envato" }
+                  "verify_type": { "type": "string", "default": "envata" }
                 }
               }
             }
