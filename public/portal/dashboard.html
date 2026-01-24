@@ -33,6 +33,16 @@
         .dark body {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         }
+        .endpoint-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .endpoint-badge.post { background: #3b82f6; color: white; }
+        .endpoint-badge.get { background: #10b981; color: white; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -83,7 +93,7 @@
         <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">📊 Dashboard</h1>
-                <p class="text-slate-400">Visão geral das suas licenças</p>
+                <p class="text-slate-400">Visão geral das suas licenças e API</p>
             </div>
             <button id="btn-new-license" onclick="showNewLicenseModal()" class="hidden btn-primary px-6 py-3 text-white rounded-lg font-semibold shadow-lg">
                 + Nova Licença
@@ -93,6 +103,97 @@
         <!-- Stats Cards -->
         <div id="stats-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <!-- Loading skeletons aparecerão aqui -->
+        </div>
+        
+        <!-- API Endpoints Section -->
+        <div class="mb-8">
+            <div class="bg-slate-800 rounded-lg shadow-xl border border-slate-700 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">🔗 Endpoints de Licenciamento</h2>
+                        <p class="text-sm text-slate-400">APIs públicas disponíveis para integração</p>
+                    </div>
+                    <a href="/swagger/" target="_blank" 
+                       class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition-all">
+                        📖 Documentação Swagger
+                    </a>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- LicenseBoxAPI Compatibility Endpoints -->
+                    <div class="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                        <h3 class="text-sm font-semibold text-indigo-400 mb-3">⚡ LicenseBox Compatibility</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/check_connection_ext</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/latest_version</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/activate_compat</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/verify_compat</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/deactivate_compat</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/check_update</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-700">
+                            <p class="text-xs text-slate-500">🔑 Autenticação: Header <code class="bg-slate-800 px-1 rounded">LB-API-KEY</code></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Standard Licensing Endpoints -->
+                    <div class="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                        <h3 class="text-sm font-semibold text-purple-400 mb-3">🎯 Endpoints Padrão</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/validate</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /license/activate</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge get">GET</span> /license/check</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge get">GET</span> /licenses</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300"><span class="endpoint-badge post">POST</span> /licenses</span>
+                                <span class="text-xs text-green-400">✓ Ativo</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-700">
+                            <p class="text-xs text-slate-500">🔑 Autenticação: Bearer Token ou Público</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- API Health Info -->
+                <div class="mt-4 bg-green-900/20 border border-green-800/50 rounded-lg p-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-sm text-green-300">API Online e Operacional</span>
+                        <span class="text-xs text-slate-400 ml-auto">Versão 2.1.0</span>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Search Bar -->
