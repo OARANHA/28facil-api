@@ -131,7 +131,10 @@ if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
         '/api/deactivate_license',
         '/api/check_connection_ext',
         '/api/latest_version',
-        '/api/check_update'
+        '/api/check_update',
+        
+        // Novo endpoint de instalador customizado
+        '/api/v1/installer/validate'
     ];
     
     if (!in_array($path, $csrfExempt)) {
@@ -234,6 +237,17 @@ try {
             'success' => true,
             'csrf_token' => $_SESSION['_token']
         ]);
+        exit;
+    }
+    
+    // ===========================
+    // NOVO ENDPOINT INSTALADOR CUSTOMIZADO
+    // Usado por 28Salon/28Pro com instalador customizado
+    // ===========================
+    
+    if ($path === '/api/v1/installer/validate' && $method === 'POST') {
+        $controller = new LicenseController($db);
+        echo json_encode($controller->installerValidate(), JSON_PRETTY_PRINT);
         exit;
     }
     
@@ -569,6 +583,7 @@ function healthCheck() {
         'features' => [
             'licensing' => 'enabled',
             'licensebox_compatibility' => 'enabled',
+            'custom_installer' => 'enabled',
             'portal' => 'enabled',
             'users' => 'enabled',
             'api_keys' => 'enabled',
@@ -581,6 +596,9 @@ function healthCheck() {
             'rate_limiting' => 'client-side'
         ],
         'endpoints' => [
+            'installer_custom' => [
+                'validate' => ['method' => 'POST', 'path' => '/api/v1/installer/validate', 'auth' => 'public', 'description' => 'Validate license for custom installer (28Salon/28Pro)']
+            ],
             'licensing_28pro' => [
                 'validate' => ['method' => 'POST', 'path' => '/api/license/validate', 'auth' => 'public'],
                 'activate' => ['method' => 'POST', 'path' => '/api/license/activate', 'auth' => 'public'],
