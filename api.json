@@ -3,7 +3,7 @@
   "info": {
     "title": "28Facil API",
     "description": "API REST para autenticação e gerenciamento de API Keys do sistema 28Facil",
-    "version": "1.0.0",
+    "version": "2.1.0",
     "contact": {
       "name": "28Facil Team",
       "email": "contato@28facil.com.br",
@@ -32,6 +32,10 @@
     {
       "name": "Authentication",
       "description": "Validação de API Keys"
+    },
+    {
+      "name": "Custom Installer",
+      "description": "Endpoints para instalador customizado (28Salon/28Pro)"
     },
     {
       "name": "Licensing",
@@ -137,6 +141,101 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/validate": {
+      "post": {
+        "tags": ["Custom Installer"],
+        "summary": "Validar licença via instalador customizado",
+        "description": "Valida licença de produto com instalador customizado (28Salon, 28Pro). Este endpoint aceita productkey (purchase_code) e retorna status da licença.",
+        "operationId": "installerValidate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productkey", "client"],
+                "properties": {
+                  "productkey": {
+                    "type": "string",
+                    "description": "Chave de licença (purchase_code)",
+                    "example": "XXXX-XXXX-XXXX-XXXX"
+                  },
+                  "client": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL da instalação do cliente",
+                    "example": "https://meusite.com"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "Versão do sistema instalado",
+                    "example": "1.6.0"
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Data/hora da requisição em formato ISO 8601",
+                    "example": "2026-01-25T18:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Licença válida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallerValidateSuccess"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Licença expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallerValidateExpired"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Licença não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallerValidateNotFound"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida (falta productkey ou client)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Parâmetros productkey e client são obrigatórios"
+                    }
+                  }
                 }
               }
             }
@@ -395,11 +494,11 @@
             "type": "string",
             "example": "28Facil API Server is running!"
           },
-          "version": { "type": "string", "example": "1.0.0" },
+          "version": { "type": "string", "example": "2.1.0" },
           "timestamp": {
             "type": "string",
             "format": "date-time",
-            "example": "2026-01-20T04:00:00-03:00"
+            "example": "2026-01-25T18:00:00-03:00"
           },
           "php_version": { "type": "string", "example": "8.2.0" },
           "database": {
@@ -474,6 +573,83 @@
             "type": "string",
             "format": "date-time",
             "example": "2026-01-20T05:00:00-03:00"
+          }
+        }
+      },
+      "InstallerValidateSuccess": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Licença válida"
+          },
+          "licensetype": {
+            "type": "string",
+            "enum": ["lifetime", "annual", "monthly", "trial"],
+            "example": "lifetime"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null,
+            "description": "Data de expiração (null para licenças vitalícias)"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["all"],
+            "description": "Lista de features disponíveis"
+          },
+          "license_key_info": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "example": "XXXX-****-****-XXXX",
+                "description": "Chave parcialmente mascarada"
+              },
+              "type": {
+                "type": "string",
+                "example": "lifetime"
+              },
+              "max_sites": {
+                "type": "integer",
+                "example": 1
+              }
+            }
+          }
+        }
+      },
+      "InstallerValidateExpired": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Licença expirada em 25/12/2025. Entre em contato para renovação."
+          }
+        }
+      },
+      "InstallerValidateNotFound": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Chave de licença não encontrada. Entre em contato com o suporte."
           }
         }
       }
