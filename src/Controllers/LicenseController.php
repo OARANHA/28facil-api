@@ -149,6 +149,121 @@ class LicenseController
         http_response_code(404);
         return ['error' => 'Licença não encontrada'];
     }
+
+    /**
+     * POST /api/v1/installer/validate
+     * Validar licença para instalador customizado (28Salon/28Pro)
+     * 
+     * Payload esperado:
+     * {
+     *   "productkey": "XXXX-XXXX-XXXX-XXXX",
+     *   "client": "https://seu-site.com",
+     *   "version": "1.6.0",
+     *   "timestamp": "2026-01-25T14:00:00Z"
+     * }
+     */
+    public function installerValidate()
+    {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $productKey = $input['productkey'] ?? '';
+        $client = $input['client'] ?? '';
+        $version = $input['version'] ?? '';
+        $timestamp = $input['timestamp'] ?? '';
+        
+        // Log para debug
+        error_log('Installer Validate Request: ' . json_encode([
+            'productkey' => $productKey ? '***' . substr($productKey, -4) : 'empty',
+            'client' => $client,
+            'version' => $version,
+            'timestamp' => $timestamp,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]));
+        
+        if (empty($productKey)) {
+            http_response_code(400);
+            return [
+                'valid' => false,
+                'message' => 'Chave de licença é obrigatória'
+            ];
+        }
+        
+        if (empty($client)) {
+            http_response_code(400);
+            return [
+                'valid' => false,
+                'message' => 'URL do cliente é obrigatória'
+            ];
+        }
+        
+        try {
+            // Buscar licença pelo purchase_code
+            $stmt = $this->db->prepare("
+                SELECT id, uuid, product_name, license_type, status, max_activations, expires_at,
+                       (SELECT COUNT(*) FROM license_activations WHERE license_id = id AND status = 'active') as active_activations
+                FROM licenses
+                WHERE purchase_code = :purchase_code
+            ");
+            $stmt->execute(['purchase_code' => $productKey]);
+            $license = $stmt->fetch();
+            
+            if (!$license) {
+                http_response_code(404);
+                return [
+                    'valid' => false,
+                    'message' => 'Chave de licença não encontrada. Entre em contato com o suporte.'
+                ];
+            }
+            
+            // Verificar se licença está ativa
+            if ($license['status'] !== 'active') {
+                http_response_code(403);
+                return [
+                    'valid' => false,
+                    'message' => 'Licença desativada. Entre em contato com o suporte.'
+                ];
+            }
+            
+            // Verificar expiração
+            if ($license['expires_at'] && strtotime($license['expires_at']) < time()) {
+                http_response_code(403);
+                return [
+                    'valid' => false,
+                    'message' => 'Licença expirada em ' . date('d/m/Y', strtotime($license['expires_at'])) . '. Entre em contato para renovação.'
+                ];
+            }
+            
+            // Registrar validação bem-sucedida (atualizar contador)
+            $updateStmt = $this->db->prepare("
+                UPDATE licenses 
+                SET last_validated_at = NOW()
+                WHERE id = :id
+            ");
+            $updateStmt->execute(['id' => $license['id']]);
+            
+            // Retornar resposta conforme especificação
+            return [
+                'valid' => true,
+                'message' => 'Licença válida',
+                'licensetype' => $license['license_type'],
+                'expires_at' => $license['expires_at'],
+                'features' => ['all'],
+                'license_key_info' => [
+                    'key' => substr($productKey, 0, 4) . '-****-****-' . substr($productKey, -4),
+                    'type' => $license['license_type'],
+                    'max_sites' => (int)$license['max_activations']
+                ]
+            ];
+            
+        } catch (\Exception $e) {
+            error_log('Installer validate error: ' . $e->getMessage());
+            http_response_code(500);
+            return [
+                'valid' => false,
+                'message' => 'Erro ao validar licença. Tente novamente.'
+            ];
+        }
+    }
     
     /**
      * POST /license/validate
